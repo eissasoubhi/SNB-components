@@ -1,4 +1,4 @@
-import EventsAwareInterface from './Interfaces/EventsAwareInterface'
+import EventsAwareInterface from './Module/Interfaces/EventsAwareInterface'
 
 export default class EventManager implements EventsAwareInterface {
     private eventsQueue: any;

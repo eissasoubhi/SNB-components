@@ -1,5 +1,5 @@
-import Utils from "../Utils";
-import Editor from "../Editor";
+import Utils from "../../Utils";
+import Editor from "../../Editor";
 import EditableBrick from "../EditableBrick";
 import DataInterface from "../Interfaces/DataInterface";
 

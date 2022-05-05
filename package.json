@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/eissasoubhi/SNB-components/issues"
   },
-  "homepage": "https://github.com/eissasoubhi/SNB-components#readme"
+  "homepage": "https://github.com/eissasoubhi/SNB-components#readme",
+  "devDependencies": {
+    "@types/react": "^18.0.8"
+  }
 }

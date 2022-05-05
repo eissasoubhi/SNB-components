@@ -1,4 +1,4 @@
-import Utils from "../Utils";
+import Utils from "../../Utils";
 import ModalModeAbstract from "./ModalModeAbstract";
 import DataInterface from "../Interfaces/DataInterface";
 import ModalModeInterface from '../Interfaces/Modal/ModalModeInterface'
@@ -21,10 +21,7 @@ export default abstract class BrickCreatingModeAbstract extends ModalModeAbstrac
 
         style =  $(style).wrap('<span contenteditable="false"></span>').parent()[0]
 
-        // for an unknown reason, quotes and double-quotes inside the style tags are escaped,
-        // here we recover them by replacing the escaped characters.
-        // the escaped string must be inserted to the editor as HTML text, not as HTML node, in order for it to work
-        return style.outerHTML.replace(/(&quot;)|(&#x27;)/g, '"')
+        return Utils.getEditorInsertableHTML(style)
     }
 
     createBlankLine(data: DataInterface): string {

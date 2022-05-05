@@ -1,5 +1,5 @@
 import EventManager from "./EventManager";
-import EventsAwareInterface from "./Interfaces/EventsAwareInterface";
+import EventsAwareInterface from "./Module/Interfaces/EventsAwareInterface";
 
 export default class Editor implements EventsAwareInterface{
     private context: any;

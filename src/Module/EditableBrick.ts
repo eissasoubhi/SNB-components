@@ -1,4 +1,4 @@
-import Utils from "./Utils";
+import Utils from "../Utils";
 import RenderEditableWrap from "./templates/editableWrapTemplate";
 import DataInterface from "./Interfaces/DataInterface";
 import EditableBrickOptionsInterface from "./Interfaces/Editable/EditableBrickOptionsInterface";

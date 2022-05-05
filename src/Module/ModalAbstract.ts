@@ -1,12 +1,12 @@
-import Utils from "./Utils";
-import EventManager from "./EventManager";
-import DataValidator from "./DataValidator";
+import Utils from "../Utils";
+import EventManager from "../EventManager";
+import DataValidator from "../DataValidator";
 import DataInterface from "./Interfaces/DataInterface";
 import ModalInterface from './Interfaces/Modal/ModalInterface'
 import EventsAwareInterface from './Interfaces/EventsAwareInterface'
 import ModalModeInterface from './Interfaces/Modal/ModalModeInterface'
 import ModalOptionsInterface from "./Interfaces/Modal/ModalOptionsInterface";
-import MessageFactoriesProvider from "./MessageFactoriesProvider";
+import MessageFactoriesProvider from "../MessageFactoriesProvider";
 
 
 export default abstract class ModalAbstract implements ModalInterface, EventsAwareInterface{

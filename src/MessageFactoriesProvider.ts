@@ -1,4 +1,4 @@
-import MessagesFactoriesInterface from "./Interfaces/MessagesFactoriesInterface";
+import MessagesFactoriesInterface from "./Module/Interfaces/MessagesFactoriesInterface";
 
 export default abstract class MessageFactoriesProvider {
 

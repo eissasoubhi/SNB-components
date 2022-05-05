@@ -1,4 +1,4 @@
-import SnbExtensionInterface from "./Interfaces/SnbExtensionInterface";
+import SnbExtensionInterface from "./Module/Interfaces/SnbExtensionInterface";
 
 export default class ExtensionsManager {
     private extensions: SnbExtensionInterface[] = []
