@@ -18,6 +18,7 @@ export default class EditableBrick {
         const editableWrap = RenderEditableWrap({
             editableBrickClass: this.options.editableBrickClass,
             snbBrickContainerClass: this.snbBrickContainerClass,
+            showLinebreaksButtons: true
         })
 
         const editableBrick = Utils.JSXElementToHTMLElement(editableWrap)

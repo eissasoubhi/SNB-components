@@ -17,7 +17,8 @@ export default (options: WhitespaceStyleOptionsInterface) => {
                     transition: background .5s ease, border .5s ease;
                 }
                 
-                .${options.removableLineBreakClass}:hover {
+                .${options.removableLineBreakClass}:hover, 
+                .${options.removableLineBreakClass}.highlighted {
                     background-color: #fff8f8;
                     border: 1px solid rgba(185, 1, 1, 0.03);
                 }

@@ -2,14 +2,16 @@ import Editor from "../../Editor";
 import SnbExtensionInterface from "../../Module/Interfaces/SnbExtensionInterface";
 import Utils from "../../Utils";
 import ExtensionStyleRenderer from './style'
+import LineBreakManager from "../../LineBreak/LineBreakManager";
 
 export default class WhiteSpaceManagerExtension implements SnbExtensionInterface {
 
-    protected snbRemovableLineBreakClass = 'snb-removable-line-break'
-    protected snbRemoveLineBreakBtnClass = 'snb-remove-line-break-btn'
-    public readonly name: string = 'whiteSpaceManager'
+    public readonly name: string = 'snbWhiteSpaceManager'
+    private linebreakManager: LineBreakManager;
 
     onInit(editor: Editor): void {
+
+        this.linebreakManager = new LineBreakManager(editor)
 
         this.addStyleToDOM()
 
@@ -21,8 +23,8 @@ export default class WhiteSpaceManagerExtension implements SnbExtensionInterface
 
         const extensionStyle = ExtensionStyleRenderer({
             styleIdentifier: styleIdentifier,
-            removableLineBreakClass: this.snbRemovableLineBreakClass,
-            removeLineBreakBtnClass: this.snbRemoveLineBreakBtnClass,
+            removableLineBreakClass: this.linebreakManager.snbRemovableLineBreakClass,
+            removeLineBreakBtnClass: this.linebreakManager.snbRemoveLineBreakBtnClass,
         })
 
         const style = Utils.JSXElementToHTMLElement(extensionStyle)
@@ -65,8 +67,8 @@ export default class WhiteSpaceManagerExtension implements SnbExtensionInterface
 
         // ====================
 
-        $(editor.editable).on('click', `.${this.snbRemoveLineBreakBtnClass}`, function () {
-            $(this).parent(`p.${_this.snbRemovableLineBreakClass}`).remove()
+        $(editor.editable).on('click', `.${this.linebreakManager.snbRemoveLineBreakBtnClass}`, function () {
+            $(this).parent(`p.${_this.linebreakManager.snbRemovableLineBreakClass}`).remove()
         })
     }
 
@@ -76,25 +78,23 @@ export default class WhiteSpaceManagerExtension implements SnbExtensionInterface
         $(editor.editable).find('p').each(function () {
             const $p = $(this);
 
-            if (_this.isLineBreak($p)) {
-                $p.addClass(_this.snbRemovableLineBreakClass)
+            if (_this.linebreakManager.isLineBreak($p)) {
+                $p.addClass(_this.linebreakManager.snbRemovableLineBreakClass)
             } else {
-                $p.removeClass(_this.snbRemovableLineBreakClass)
+                $p.removeClass(_this.linebreakManager.snbRemovableLineBreakClass)
             }
 
-            if (_this.isLineBreak($p) && !_this.hasRemoveLineBreakBtn($p)) {
-                    $p.append(`<span class="${_this.snbRemoveLineBreakBtnClass}"></span>`)
-            } else if(!_this.isLineBreak($p) && _this.hasRemoveLineBreakBtn($p)) {
-                $p.find(`.${_this.snbRemoveLineBreakBtnClass}`).remove()
+            if (_this.linebreakManager.isLineBreak($p) &&
+                !_this.linebreakManager.hasRemoveLineBreakBtn($p)) {
+
+                    $p.append(_this.linebreakManager.createLinebreakRemoveBtn())
+
+            } else if(!_this.linebreakManager.isLineBreak($p) &&
+                _this.linebreakManager.hasRemoveLineBreakBtn($p)) {
+
+                $p.find(`.${_this.linebreakManager.snbRemoveLineBreakBtnClass}`).remove()
+
             }
         })
-    }
-
-    isLineBreak($element: JQuery): boolean {
-        return $element.is('p') && $element.text() == ''
-    }
-
-    hasRemoveLineBreakBtn($element: JQuery): boolean {
-        return $element.find(`.${this.snbRemoveLineBreakBtnClass}`).length !== 0
     }
 }

@@ -1,5 +1,7 @@
 export default interface EditableWrapOptionsInterface {
-    editableBrickClass: string,
+    editableBrickClass: string
 
-    snbBrickContainerClass: string,
+    snbBrickContainerClass: string
+
+    showLinebreaksButtons: boolean
 }

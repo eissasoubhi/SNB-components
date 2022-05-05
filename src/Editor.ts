@@ -1,5 +1,7 @@
 import EventManager from "./EventManager";
 import EventsAwareInterface from "./Module/Interfaces/EventsAwareInterface";
+import LineBreakManager from "./LineBreak/LineBreakManager";
+import LinebreakSideEnum from "./LineBreak/LinebreakSideEnum";
 
 export default class Editor implements EventsAwareInterface{
     private context: any;
@@ -9,15 +11,16 @@ export default class Editor implements EventsAwareInterface{
     public readonly editable: JQueryStatic;
     private eventManager: EventManager;
     private snEditor: JQueryStatic;
+    private linebreakManager: LineBreakManager;
 
     constructor(context: any) {
         this.context = context
         this.editableBrickClass = 'snb-heading-brick';
         this.styleIdentifier = `snb-style-${this.editableBrickClass}`
-        this.blankLineClass = `snb-line-${this.editableBrickClass}`
         this.editable = context.layoutInfo.editable
         this.snEditor = context.layoutInfo.editor
         this.eventManager = new EventManager()
+        this.linebreakManager = new LineBreakManager(this)
 
         this.attachEvents()
     }
@@ -35,7 +38,9 @@ export default class Editor implements EventsAwareInterface{
 
         $(this.editable).on('click', `.${this.editableBrickClass} .snb-brick-actions .snb-remove `, function() {
             let $brick = $(this).parents(`.${_this.editableBrickClass}`)
+
             $brick.remove()
+
             _this.trigger('brick-removed', $brick.get(0))
         })
 
@@ -43,6 +48,22 @@ export default class Editor implements EventsAwareInterface{
             let $brick = $(this).parents(`.${_this.editableBrickClass}`)
 
             _this.trigger('brick-editing', $brick.get(0))
+        })
+
+        $(this.editable).on('click', `.${this.editableBrickClass} .snb-linebreaks .snb-linebreak-up `, function() {
+            const $brick = $(this).parents(`.${_this.editableBrickClass}`)
+
+            const $insertedLinebreak = _this.linebreakManager.insertLinebreakNearBrick($brick, LinebreakSideEnum.Up)
+
+            _this.trigger('new-linebreak-added-up', $insertedLinebreak)
+        })
+
+        $(this.editable).on('click', `.${this.editableBrickClass} .snb-linebreaks .snb-linebreak-down `, function() {
+            const $brick = $(this).parents(`.${_this.editableBrickClass}`)
+
+            const $insertedLinebreak = _this.linebreakManager.insertLinebreakNearBrick($brick, LinebreakSideEnum.Down)
+
+            _this.trigger('new-linebreak-added-down', $insertedLinebreak)
         })
 
     }
@@ -83,16 +104,5 @@ export default class Editor implements EventsAwareInterface{
 
     hasStyle(styleIdentifier: string): boolean {
         return !!$(this.editable).find(`style.${styleIdentifier}`).length
-    }
-
-    removeBlankLine(blankLineIdentifier: string):void {
-        const $line = $(this.editable).find(`p.${this.blankLineClass}.${blankLineIdentifier}`)
-
-        if ($line.text() == '') {
-            $line.remove()
-        } else {
-            // reset the non-empty line to simple paragraph tag
-            $line.removeClass(`${this.blankLineClass} ${blankLineIdentifier}`)
-        }
     }
 }
