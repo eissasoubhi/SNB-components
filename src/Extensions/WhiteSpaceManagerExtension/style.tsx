@@ -1,6 +1,6 @@
 // for JSX rendering
 import * as React from "react";
-import WhitespaceStyleOptionsInterface from "snb-components/src/Extensions/WhiteSpaceManagerExtension/Interfaces/WhitespaceStyleOptionsInterface";
+import WhitespaceStyleOptionsInterface from "./Interfaces/WhitespaceStyleOptionsInterface";
 
 export default (options: WhitespaceStyleOptionsInterface) => {
 
