@@ -1,0 +1,1 @@
+{"version":3,"file":"ModalInterface.d.ts","sourceRoot":"","sources":["../../../../src/Module/Interfaces/Modal/ModalInterface.ts"],"names":[],"mappings":"AAAA,OAAO,aAAa,MAAM,kBAAkB,CAAC;AAE7C,MAAM,CAAC,OAAO,WAAW,cAAc;IAEnC,IAAI,CAAC,IAAI,EAAE,aAAa,GAAG,IAAI,CAAA;IAE/B,KAAK,IAAI,IAAI,CAAA;IAEb,OAAO,IAAI,aAAa,CAAA;CAC3B"}
