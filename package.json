@@ -12,7 +12,6 @@
     "summernote plugin"
   ],
   "homepage": "https://github.com/eissasoubhi/SNB-components#readme",
-  "repository": "",
   "devDependencies": {
     "@types/jquery": "^3.5.14",
     "@types/react": "^18.0.5",
