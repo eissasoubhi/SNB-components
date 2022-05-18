@@ -13,6 +13,7 @@ module.exports = {
     output: {
         path: path.resolve( __dirname, 'dist' ),
         filename: 'snb-components.min.js',
+        libraryTarget: "commonjs2"
     },
 
     // file resolutions
