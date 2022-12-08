@@ -20,11 +20,11 @@ export default class EventManager implements EventsAwareInterface {
     }
 
     // Fire an event
-    trigger(eventName: string, data: object = {}) {
+    trigger(eventName: string, payload: object = {}) {
         let events = this.eventsQueue[eventName] || [];
 
         for (let i = 0; i < events.length; i++) {
-            events[i].apply(null, [data]);
+            events[i].call(null, payload);
         }
 
         return this;

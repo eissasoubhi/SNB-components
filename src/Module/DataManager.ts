@@ -115,12 +115,15 @@ export default class DataManager {
                 //
                 _this.setNextFetch(parsed_response);
 
-                _this.event.trigger('fetch', [
-                    parsed_response.data,
-                    _this.current_page,
-                    xhr.request_link,
-                    parsed_response.next_link
-                ]);
+                _this.event.trigger(
+                    'fetch',
+                    {
+                        data: parsed_response.data,
+                        page: _this.current_page,
+                        requestLink: xhr.request_link,
+                        nextLink: parsed_response.next_link
+                    }
+                );
             })
             .fail(function() {
                 _this.event.trigger('error', ["problem loading from " + current_link]);
