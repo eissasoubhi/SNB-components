@@ -9,7 +9,11 @@ export default abstract class BrickCreatingModeAbstract extends ModalModeAbstrac
 
     save(data: DataInterface): void {
         if (!this.editor.hasStyle(this.editor.styleIdentifier)) {
-            this.editor.insertHtml(this.createStyle(data))
+            const style = this.createStyle(data)
+
+            if (style) {
+                this.editor.insertHtml(style)
+            }
         }
 
         this.editor.insertNode(this.createBrick(data))
@@ -17,7 +21,11 @@ export default abstract class BrickCreatingModeAbstract extends ModalModeAbstrac
     }
 
     createStyle(data: DataInterface): string {
-        let style = Utils.JSXElementToHTMLElement( this.getBrickStyleTemplate(data) )
+        const jsxElement = this.getBrickStyleTemplate(data)
+
+        if (!jsxElement) return null
+
+        let style = Utils.JSXElementToHTMLElement(jsxElement)
 
         style =  $(style).wrap('<span contenteditable="false"></span>').parent()[0]
 
