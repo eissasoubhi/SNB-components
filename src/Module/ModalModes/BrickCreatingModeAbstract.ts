@@ -38,5 +38,5 @@ export default abstract class BrickCreatingModeAbstract extends ModalModeAbstrac
 
     abstract getModalLoadData(modalOptions: ModalOptionsInterface): DataInterface
 
-    abstract getBrickStyleTemplate(data: DataInterface): JSX.Element
+    abstract getBrickStyleTemplate(data: DataInterface): JSX.Element|void
 }
