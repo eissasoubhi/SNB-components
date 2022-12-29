@@ -8,6 +8,6 @@ export default abstract class BrickCreatingModeAbstract extends ModalModeAbstrac
     createStyle(data: DataInterface): string;
     createBlankLine(data: DataInterface): string;
     abstract getModalLoadData(modalOptions: ModalOptionsInterface): DataInterface;
-    abstract getBrickStyleTemplate(data: DataInterface): JSX.Element|void;
+    abstract getBrickStyleTemplate(data: DataInterface): JSX.Element | void;
 }
 //# sourceMappingURL=BrickCreatingModeAbstract.d.ts.map

@@ -1,5 +1,6 @@
 import DataManagerOptionsInterface from "./Interfaces/DataManagerOptionsInterface";
-export default class DataManager {
+import { EventsAwareInterface } from "./Interfaces";
+export default class DataManager implements EventsAwareInterface {
     private fetch_type?;
     private options;
     private current_page;
@@ -18,5 +19,7 @@ export default class DataManager {
     };
     fetchData(): void;
     fetchNext(): void;
+    on(eventName: string, eventHandler: (data: unknown) => void): EventsAwareInterface;
+    trigger(eventName: string, data: object): EventsAwareInterface;
 }
 //# sourceMappingURL=DataManager.d.ts.map
