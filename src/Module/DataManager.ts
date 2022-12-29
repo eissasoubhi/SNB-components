@@ -80,7 +80,7 @@ export default class DataManager implements EventsAwareInterface{
         if (this.fetch_type == 'data') {
 
             this.event.trigger('beforeFetch');
-            this.event.trigger('fetch', [this.options.data]);
+            this.event.trigger('fetch', { data: this.options.data });
             this.event.trigger('afterFetch');
 
         } else if (this.fetch_type == 'url') {
@@ -125,14 +125,18 @@ export default class DataManager implements EventsAwareInterface{
                 );
             })
             .fail(() => {
-                this.event.trigger('error', ["problem loading from " + current_link]);
+                this.event.trigger('error', {
+                    error: "problem loading from " + current_link
+                });
             })
             .always(() => {
                 this.event.trigger('afterFetch');
             });
 
         } else {
-            this.event.trigger('error', ["options 'data' or 'url' must be set"]);
+            this.event.trigger('error', {
+                error: "options 'data' or 'url' must be set"
+            });
         }
     }
 
