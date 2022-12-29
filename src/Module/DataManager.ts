@@ -1,7 +1,8 @@
 import EventManager from '../EventManager'
 import DataManagerOptionsInterface from "./Interfaces/DataManagerOptionsInterface";
+import {EventsAwareInterface} from "./Interfaces";
 
-export default class DataManager {
+export default class DataManager implements EventsAwareInterface{
     private fetch_type?: string;
     private options: DataManagerOptionsInterface;
     private current_page: number;
@@ -56,7 +57,7 @@ export default class DataManager {
 
     // get a key from object with dot notation, example: data.key.subkey.
     getObjectKeyByString(object: any, dotted_key: string, default_val?: any) {
-        const value = dotted_key.split('.').reduce(function (item: any, i: any) {
+        const value = dotted_key.split('.').reduce((item: any, i: any) => {
             return item ? item[i] : {};
         }, object);
 
@@ -76,12 +77,10 @@ export default class DataManager {
     }
 
     fetchData() {
-        const _this = this;
-
         if (this.fetch_type == 'data') {
 
             this.event.trigger('beforeFetch');
-            this.event.trigger('fetch', [_this.options.data]);
+            this.event.trigger('fetch', [this.options.data]);
             this.event.trigger('afterFetch');
 
         } else if (this.fetch_type == 'url') {
@@ -91,7 +90,7 @@ export default class DataManager {
             // they must be synchronous.
             if (this.is_fetching_locked) return;
 
-            const current_link = _this.fetch_url;
+            const current_link = this.fetch_url;
 
             this.event.trigger('beforeFetch');
 
@@ -99,41 +98,41 @@ export default class DataManager {
 
             $.ajax({
                 url: current_link,
-                beforeSend:function(xhr: any){
+                beforeSend:(xhr: any) => {
                     // set the request link to get it afterwards in the response
                     xhr.request_link = current_link;
                 },
             })
-            .always(function () {
+            .always(() =>{
                 // this is the first callback to be called when the request finises
-                _this.unlockFetching();
+                this.unlockFetching();
             })
-            .done(function(response, status_text, xhr: any){
-                const parsed_response = _this.parseResponse(response);
-                _this.current_page++;
+            .done((response, status_text, xhr: any) => {
+                const parsed_response = this.parseResponse(response);
+                this.current_page++;
 
                 //
-                _this.setNextFetch(parsed_response);
+                this.setNextFetch(parsed_response);
 
-                _this.event.trigger(
+                this.event.trigger(
                     'fetch',
                     {
                         data: parsed_response.data,
-                        page: _this.current_page,
+                        page: this.current_page,
                         requestLink: xhr.request_link,
                         nextLink: parsed_response.next_link
                     }
                 );
             })
-            .fail(function() {
-                _this.event.trigger('error', ["problem loading from " + current_link]);
+            .fail(() => {
+                this.event.trigger('error', ["problem loading from " + current_link]);
             })
-            .always(function () {
-                _this.event.trigger('afterFetch');
+            .always(() => {
+                this.event.trigger('afterFetch');
             });
 
         } else {
-            _this.event.trigger('error', ["options 'data' or 'url' must be set"]);
+            this.event.trigger('error', ["options 'data' or 'url' must be set"]);
         }
     }
 
@@ -141,5 +140,13 @@ export default class DataManager {
         if (this.fetch_type == 'url') {
             this.fetchData();
         }
+    }
+
+    on(eventName: string, eventHandler: (data: unknown) => void): EventsAwareInterface {
+        return this.event.on(eventName, eventHandler)
+    }
+
+    trigger(eventName: string, data: object): EventsAwareInterface {
+        return this.event.trigger(eventName, data)
     }
 }

@@ -28,28 +28,26 @@ export default abstract class ModalAbstract implements ModalInterface, EventsAwa
     }
 
     attachEvents() {
-        let _this = this;
+        this.getSaveButton().on('click',(event) => {
 
-        this.getSaveButton().on('click',function(event) {
+            const validator = new DataValidator(this.getData(), this.options.validations)
 
-            const validator = new DataValidator(_this.getData(), _this.options.validations)
-
-            _this.clearMessages()
+            this.clearMessages()
 
             if (!validator.isValid()) {
-                _this.showErrors(validator.getErrors())
+                this.showErrors(validator.getErrors())
                 return
             }
 
-            _this.close()
+            this.close()
 
-            _this.trigger('beforeSave');
+            this.trigger('beforeSave');
 
-            _this.mode.save(_this.getData())
+            this.mode.save(this.getData())
 
-            _this.trigger('save', {data: _this.getData()});
+            this.trigger('save', {data: this.getData()});
 
-            _this.trigger('afterSave');
+            this.trigger('afterSave');
         });
     }
 
