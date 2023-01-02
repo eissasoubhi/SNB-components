@@ -19,12 +19,11 @@ export default abstract class ModalAbstract implements ModalInterface, EventsAwa
     protected constructor(mode: ModalModeInterface, messagesFactoriesProvider: MessageFactoriesProvider, options: ModalOptionsInterface) {
 
         this.options = options
-
         this.mode = mode;
-
         this.messagesFactoriesProvider = messagesFactoriesProvider;
-
         this.eventManager = new EventManager();
+
+        this.init()
     }
 
     attachEvents() {
@@ -52,11 +51,13 @@ export default abstract class ModalAbstract implements ModalInterface, EventsAwa
     }
 
     open():void {
+        (this.$modal as any).modal();
+    }
+
+    init(): void {
         this.$modal = this.createModal(this.mode.getModalLoadData(this.options));
 
         this.attachEvents();
-
-        (this.$modal as any).modal();
     }
 
     close():void {
