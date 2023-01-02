@@ -21,7 +21,7 @@ export default class EditableBrick {
             showLinebreaksButtons: true
         })
 
-        const editableBrick = Utils.JSXElementToHTMLElement(editableWrap)
+        const editableBrick = Utils.JSXElementToHTMLElement(editableWrap)[0]
 
         $(editableBrick).find(`.${this.snbBrickContainerClass}`).append(this.brick)
 

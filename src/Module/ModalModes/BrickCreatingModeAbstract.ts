@@ -25,7 +25,7 @@ export default abstract class BrickCreatingModeAbstract extends ModalModeAbstrac
 
         if (!jsxElement) return null
 
-        let style = Utils.JSXElementToHTMLElement(jsxElement)
+        let style = Utils.JSXElementToHTMLElement(jsxElement)[0]
 
         style =  $(style).wrap('<span contenteditable="false"></span>').parent()[0]
 

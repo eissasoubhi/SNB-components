@@ -13,7 +13,7 @@ export default abstract class ModalModeAbstract {
 
     createBrick(data: DataInterface): HTMLElement {
 
-        const newBrick = Utils.JSXElementToHTMLElement( this.getBrickTemplate(data) )
+        const newBrick = Utils.JSXElementToHTMLElement( this.getBrickTemplate(data) )[0]
 
         const editableBrick = new EditableBrick(newBrick, {
             editableBrickClass: this.editor.editableBrickClass

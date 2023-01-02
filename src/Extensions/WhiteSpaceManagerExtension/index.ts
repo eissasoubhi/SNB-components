@@ -27,7 +27,7 @@ export default class WhiteSpaceManagerExtension implements SnbExtensionInterface
             removeLineBreakBtnClass: this.linebreakManager.snbRemoveLineBreakBtnClass,
         })
 
-        const style = Utils.JSXElementToHTMLElement(extensionStyle)
+        const style = Utils.JSXElementToHTMLElement(extensionStyle)[0]
 
         if ($(`.${styleIdentifier}`).length == 0) {
             $('head').append( Utils.getEditorInsertableHTML(style) )
