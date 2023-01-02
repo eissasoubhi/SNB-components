@@ -1,6 +1,6 @@
 {
   "name": "snb-components",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "description": "Summernote bricks components",
   "main": "dist/snb-components.min.js",
   "keywords": [
