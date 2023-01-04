@@ -2,7 +2,7 @@ import PageInterface from "./Module/Interfaces/PageInterface";
 
 export default abstract class PageAbstract implements PageInterface{
 
-    protected constructor() {
+    init() {
         this.addStylesToDom()
         this.addScriptsToDom()
     }
