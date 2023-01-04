@@ -1,0 +1,1 @@
+{"version":3,"file":"PageAbstract.d.ts","sourceRoot":"","sources":["../src/PageAbstract.ts"],"names":[],"mappings":"AAAA,OAAO,aAAa,MAAM,mCAAmC,CAAC;AAE9D,MAAM,CAAC,OAAO,CAAC,QAAQ,OAAO,YAAa,YAAW,aAAa;IAE/D,SAAS;IAKT,cAAc;IAId,eAAe;IAIf,QAAQ,CAAC,SAAS,IAAI,WAAW,GAAC,WAAW,EAAE;IAE/C,QAAQ,CAAC,UAAU,IAAI,WAAW,GAAC,WAAW,EAAE;CACnD"}
