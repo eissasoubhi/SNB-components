@@ -1,4 +1,6 @@
-export default abstract class PageAbstract {
+import PageInterface from "./Module/Interfaces/PageInterface";
+
+export default abstract class PageAbstract implements PageInterface{
 
     protected constructor() {
         this.addStylesToDom()
