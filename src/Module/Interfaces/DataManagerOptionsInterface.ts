@@ -11,4 +11,6 @@ export default interface DataManagerOptionsInterface {
     responseDataKey: string
 
     nextPageKey: string
+
+    formater: (data: any, page: number, response: any) => any
 }

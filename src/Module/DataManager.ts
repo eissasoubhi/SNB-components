@@ -24,6 +24,11 @@ export default class DataManager implements EventsAwareInterface{
 
                 // the key name that holds the next page link
                 nextPageKey: 'links.next',
+
+                // a middleware function to transform the response data array into the suitable format
+                formater: (data: any, page: number, response: any): any => {
+                    return data
+                }
             }, ...options
         }
 
@@ -80,7 +85,7 @@ export default class DataManager implements EventsAwareInterface{
         if (this.fetch_type == 'data') {
 
             this.event.trigger('beforeFetch');
-            this.event.trigger('fetch', { data: this.options.data });
+            this.event.trigger('fetch', { data: this.options.formater(this.options.data, 1, null) });
             this.event.trigger('afterFetch');
 
         } else if (this.fetch_type == 'url') {
@@ -117,7 +122,7 @@ export default class DataManager implements EventsAwareInterface{
                 this.event.trigger(
                     'fetch',
                     {
-                        data: parsed_response.data,
+                        data: this.options.formater(parsed_response.data, this.current_page, response),
                         page: this.current_page,
                         requestLink: xhr.request_link,
                         nextLink: parsed_response.next_link
