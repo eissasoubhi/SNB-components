@@ -3,6 +3,7 @@ import EditableBrick from "../EditableBrick";
 import ModalModeAbstract from "./ModalModeAbstract";
 import ModalModeInterface from '../Interfaces/Modal/ModalModeInterface';
 import DataInterface from "../Interfaces/DataInterface";
+import ModalOptionsInterface from "../Interfaces/Modal/ModalOptionsInterface"
 
 export default abstract class BrickEditingModeAbstract extends ModalModeAbstract implements ModalModeInterface {
 
@@ -17,7 +18,7 @@ export default abstract class BrickEditingModeAbstract extends ModalModeAbstract
         $(this.editingBrick).replaceWith(this.createBrick(data))
     }
 
-    getModalLoadData(): DataInterface {
+    getModalLoadData(modalOptions: ModalOptionsInterface): DataInterface {
 
         let editableBrick = new EditableBrick(this.editingBrick, {
             editableBrickClass: this.editor.editableBrickClass,
