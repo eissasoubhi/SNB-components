@@ -2,7 +2,7 @@ import * as Extensions from './Extensions';
 import * as LineBreak from './LineBreak';
 import * as Module from './Module';
 import * as Utils from './Utils';
-import DataValidator from "./DataValidator";
+import * as DataValidator from "./Validator";
 import Editor from "./Editor";
 import EventManager from "./EventManager";
 import ExtensionsManager from "./ExtensionsManager";

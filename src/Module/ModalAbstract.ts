@@ -1,6 +1,6 @@
 import Utils from "../Utils";
 import EventManager from "../EventManager";
-import DataValidator from "../DataValidator";
+import DataValidator from "../Validator/DataValidator";
 import DataInterface from "./Interfaces/DataInterface";
 import ModalInterface from './Interfaces/Modal/ModalInterface'
 import EventsAwareInterface from './Interfaces/EventsAwareInterface'
@@ -51,7 +51,7 @@ export default abstract class ModalAbstract implements ModalInterface, EventsAwa
     }
 
     open():void {
-        (this.$modal as any).modal();
+        this.getBsModal().modal();
     }
 
     init(): void {
@@ -61,7 +61,7 @@ export default abstract class ModalAbstract implements ModalInterface, EventsAwa
     }
 
     close():void {
-        (this.$modal as any).modal('hide');
+        this.getBsModal().modal('hide')
     }
 
     createModal(data: DataInterface): JQuery {
@@ -77,7 +77,7 @@ export default abstract class ModalAbstract implements ModalInterface, EventsAwa
         return this.eventManager.trigger(eventName, data) ;
     }
 
-    showErrors(errors: any): void {
+    showErrors(errors: string[]): void {
 
         const errorMessageFactory = this.messagesFactoriesProvider.getMessageFactory('error')
 
@@ -85,8 +85,8 @@ export default abstract class ModalAbstract implements ModalInterface, EventsAwa
             return
         }
 
-        for (const errorKey in errors) {
-            const messageNode = errorMessageFactory(errors[errorKey])
+        for (let i = 0; i < errors.length; i++) {
+            const messageNode = errorMessageFactory(errors[i])
 
             this.getMessagesContainer().append(messageNode)
         }
@@ -94,6 +94,10 @@ export default abstract class ModalAbstract implements ModalInterface, EventsAwa
 
     clearMessages():void {
         this.getMessagesContainer().html('')
+    }
+
+    getBsModal(): any {
+        return this.$modal
     }
 
     abstract getBody(): JQuery

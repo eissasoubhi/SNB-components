@@ -21,8 +21,9 @@ export default abstract class ModalAbstract implements ModalInterface, EventsAwa
     createModal(data: DataInterface): JQuery;
     on(eventName: string, eventHandler: (data: unknown) => void): EventsAwareInterface;
     trigger(eventName: string, data?: any): EventsAwareInterface;
-    showErrors(errors: any): void;
+    showErrors(errors: string[]): void;
     clearMessages(): void;
+    getBsModal(): any;
     abstract getBody(): JQuery;
     abstract getSaveButton(): JQuery;
     abstract getData(): DataInterface;

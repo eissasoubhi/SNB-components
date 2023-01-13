@@ -1,0 +1,1 @@
+{"version":3,"file":"ValidationRuleInterface.d.ts","sourceRoot":"","sources":["../../../src/Validator/Rules/ValidationRuleInterface.ts"],"names":[],"mappings":"AAAA,MAAM,CAAC,OAAO,WAAW,uBAAuB;IAC5C,OAAO,CAAC,IAAI,EAAE,GAAG,GAAG,OAAO,CAAA;IAC3B,eAAe,IAAI,MAAM,CAAA;CAC5B"}
