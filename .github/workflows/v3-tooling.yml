@@ -1,0 +1,83 @@
+name: v3 toolchain
+
+on:
+  push:
+    branches:
+      - agent/v3-vite-toolchain
+      - agent/v3-public-package
+  pull_request:
+    branches:
+      - agent/v3-core-foundation
+      - agent/v3-vite-toolchain
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Install isolated v3 toolchain
+        working-directory: v3-tooling
+        run: npm install
+
+      - name: Typecheck, test and build v3
+        working-directory: v3-tooling
+        run: npm run check
+
+      - name: Validate staged public package
+        if: hashFiles('package.v3.json') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .tmp-v3-package
+          mkdir -p .tmp-v3-package/dist
+          cp -R v3-tooling/dist/. .tmp-v3-package/dist/
+          cp package.v3.json .tmp-v3-package/package.json
+          cp docs/V3.md .tmp-v3-package/README.md
+          cp LICENSE .tmp-v3-package/LICENSE
+          cd .tmp-v3-package
+          npm pack --dry-run --json > pack.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const packed = JSON.parse(fs.readFileSync('pack.json', 'utf8'))[0];
+          const files = new Set(packed.files.map(({ path }) => path));
+          const required = [
+            'dist/index.js',
+            'dist/index.js.map',
+            'dist/index.umd.cjs',
+            'dist/index.umd.cjs.map',
+            'dist/types/index.d.ts',
+            'README.md',
+            'LICENSE',
+            'package.json'
+          ];
+          for (const path of required) {
+            if (!files.has(path)) throw new Error(`missing packed file: ${path}`);
+          }
+          if (manifest.name !== 'snb-components') throw new Error('unexpected package name');
+          if (manifest.version !== '3.0.0-rc.0') throw new Error('unexpected candidate version');
+          if (manifest.dependencies || manifest.peerDependencies) {
+            throw new Error('shared core must remain runtime/host dependency-free');
+          }
+          for (const { path } of packed.files) {
+            if (path.startsWith('src/') || path.includes('/test') || path.startsWith('v3-tooling/')) {
+              throw new Error(`internal file leaked into package: ${path}`);
+            }
+          }
+          NODE
