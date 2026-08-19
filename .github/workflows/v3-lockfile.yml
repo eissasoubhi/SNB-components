@@ -1,0 +1,47 @@
+name: v3 tooling lockfile
+
+on:
+  push:
+    branches:
+      - agent/v3-tooling-lockfile
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: v3-tooling/package-lock.json
+      - name: Generate lockfile when missing
+        working-directory: v3-tooling
+        run: |
+          if [ ! -f package-lock.json ]; then
+            npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          fi
+      - name: Validate reproducible install and package
+        working-directory: v3-tooling
+        run: |
+          npm ci
+          npm run check
+      - name: Commit generated lockfile
+        if: github.event_name == 'push'
+        run: |
+          if git diff --quiet -- v3-tooling/package-lock.json; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add v3-tooling/package-lock.json
+          git commit -m "build: add reproducible v3 tooling lockfile"
+          git push
