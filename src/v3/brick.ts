@@ -12,11 +12,15 @@ export interface CreateBrickElementOptions extends BrickMetadata {
     classNames?: string[];
 }
 
-function requireNonEmpty(value: string, label: string): string {
+function requireClassToken(value: string, label: string): string {
     const normalized = value.trim();
 
     if (!normalized) {
         throw new TypeError(`${label} must be a non-empty string.`);
+    }
+
+    if (/\s/.test(normalized)) {
+        throw new TypeError(`${label} must be a single CSS class token.`);
     }
 
     return normalized;
@@ -31,7 +35,7 @@ function requireVersion(version: number): number {
 }
 
 export function createBrickElement(options: CreateBrickElementOptions): HTMLElement {
-    const type = requireNonEmpty(options.type, 'Brick type');
+    const type = requireClassToken(options.type, 'Brick type');
     const version = requireVersion(options.version);
     const tagName = options.tagName || 'div';
     const element = document.createElement(tagName);
@@ -39,8 +43,7 @@ export function createBrickElement(options: CreateBrickElementOptions): HTMLElem
     element.classList.add(BRICK_CLASS, `snb-${type}`);
 
     (options.classNames || [])
-        .map((className) => className.trim())
-        .filter(Boolean)
+        .map((className) => requireClassToken(className, 'Brick class name'))
         .forEach((className) => element.classList.add(className));
 
     element.setAttribute(BRICK_TYPE_ATTRIBUTE, type);
@@ -50,10 +53,17 @@ export function createBrickElement(options: CreateBrickElementOptions): HTMLElem
 }
 
 export function readBrickMetadata(element: Element): BrickMetadata | null {
-    const type = element.getAttribute(BRICK_TYPE_ATTRIBUTE);
+    const rawType = element.getAttribute(BRICK_TYPE_ATTRIBUTE);
     const rawVersion = element.getAttribute(BRICK_VERSION_ATTRIBUTE);
 
-    if (!type || !rawVersion) {
+    if (!rawType || !rawVersion) {
+        return null;
+    }
+
+    let type: string;
+    try {
+        type = requireClassToken(rawType, 'Brick type');
+    } catch {
         return null;
     }
 
@@ -80,5 +90,9 @@ export function closestBrick(target: EventTarget | null): HTMLElement | null {
 
     const element = target.closest(`[${BRICK_TYPE_ATTRIBUTE}][${BRICK_VERSION_ATTRIBUTE}]`);
 
-    return element instanceof HTMLElement ? element : null;
+    if (!(element instanceof HTMLElement) || readBrickMetadata(element) === null) {
+        return null;
+    }
+
+    return element;
 }
