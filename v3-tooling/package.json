@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build": "vite build --config vite.config.ts",
+    "build:js": "vite build --config vite.config.ts",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build": "npm run build:js && npm run build:types",
     "test": "vitest run --config vitest.config.ts",
     "check": "npm run typecheck && npm run test && npm run build"
   },
