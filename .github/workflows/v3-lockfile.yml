@@ -35,7 +35,7 @@ jobs:
       - name: Commit generated lockfile
         if: github.event_name == 'push'
         run: |
-          if git diff --quiet -- v3-tooling/package-lock.json; then
+          if [ -z "$(git status --porcelain -- v3-tooling/package-lock.json)" ]; then
             exit 0
           fi
           git config user.name github-actions[bot]
