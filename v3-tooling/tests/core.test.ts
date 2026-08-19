@@ -24,17 +24,24 @@ describe('v3 brick metadata', () => {
     expect(isBrickElement(element)).toBe(true);
   });
 
-  it('rejects invalid brick metadata', () => {
+  it('rejects invalid brick metadata and class tokens', () => {
     expect(() => createBrickElement({ type: '   ', version: 1 })).toThrow(TypeError);
+    expect(() => createBrickElement({ type: 'bad type', version: 1 })).toThrow(TypeError);
     expect(() => createBrickElement({ type: 'heading', version: 0 })).toThrow(TypeError);
+    expect(() => createBrickElement({ type: 'heading', version: 1, classNames: ['bad class'] })).toThrow(TypeError);
 
     const element = document.createElement('div');
     element.setAttribute('data-snb-brick', 'heading');
     element.setAttribute('data-snb-version', 'invalid');
     expect(readBrickMetadata(element)).toBeNull();
+
+    element.setAttribute('data-snb-brick', 'bad type');
+    element.setAttribute('data-snb-version', '3');
+    expect(readBrickMetadata(element)).toBeNull();
+    expect(isBrickElement(element)).toBe(false);
   });
 
-  it('finds the closest brick from nested editor content', () => {
+  it('finds only valid closest bricks from nested editor content', () => {
     const brick = createBrickElement({ type: 'gallery', version: 3 });
     const child = document.createElement('span');
     brick.appendChild(child);
@@ -42,6 +49,15 @@ describe('v3 brick metadata', () => {
 
     expect(closestBrick(child)).toBe(brick);
     expect(closestBrick(document.createTextNode('x'))).toBeNull();
+
+    const invalidBrick = document.createElement('div');
+    invalidBrick.setAttribute('data-snb-brick', 'bad type');
+    invalidBrick.setAttribute('data-snb-version', '3');
+    const invalidChild = document.createElement('span');
+    invalidBrick.appendChild(invalidChild);
+    document.body.appendChild(invalidBrick);
+
+    expect(closestBrick(invalidChild)).toBeNull();
   });
 });
 
