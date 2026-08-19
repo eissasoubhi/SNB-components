@@ -1,0 +1,36 @@
+name: v3 tooling reproducibility
+
+on:
+  push:
+    branches:
+      - main
+      - 'agent/**'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: v3-tooling/package-lock.json
+      - name: Install v3 tooling dependencies
+        working-directory: v3-tooling
+        run: npm ci
+      - name: Validate v3 tooling package
+        working-directory: v3-tooling
+        run: npm run check
