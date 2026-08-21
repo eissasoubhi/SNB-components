@@ -62,6 +62,8 @@ npm run check
 
 `npm run check` performs strict typechecking, Vitest tests, Vite/TypeScript builds and package-shape validation.
 
+For contribution rules, package-boundary guidance, and release constraints, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Compatibility
 
 SNB-components is a browser-library core rather than a standalone Summernote plugin, so it does not claim Summernote UI compatibility independently. Compatibility is proven by the concrete Heading/Gallery plugins and the central Bricks Playwright matrix across Summernote 0.9.1 BS3/BS4/BS5/Lite and Chromium/Firefox/WebKit.
