@@ -7,7 +7,7 @@ import LineBreakManager from "../../LineBreak/LineBreakManager";
 export default class WhiteSpaceManagerExtension implements SnbExtensionInterface {
 
     public readonly name: string = 'snbWhiteSpaceManager'
-    private linebreakManager: LineBreakManager;
+    private linebreakManager!: LineBreakManager;
 
     onInit(editor: Editor): void {
 
