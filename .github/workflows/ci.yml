@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - agent/v3-core-foundation
+      - 'agent/**'
 
 permissions:
   contents: read
