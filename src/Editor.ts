@@ -17,6 +17,7 @@ export default class Editor implements EventsAwareInterface{
         this.context = context
         this.editableBrickClass = 'snb-heading-brick';
         this.styleIdentifier = `snb-style-${this.editableBrickClass}`
+        this.blankLineClass = `snb-linebreak-${this.editableBrickClass}`
         this.editable = context.layoutInfo.editable
         this.snEditor = context.layoutInfo.editor
         this.eventManager = new EventManager()
@@ -41,13 +42,19 @@ export default class Editor implements EventsAwareInterface{
 
             $brick.remove()
 
-            _this.trigger('brick-removed', $brick.get(0))
+            const brick = $brick.get(0)
+            if (brick) {
+                _this.trigger('brick-removed', brick)
+            }
         })
 
         $(this.editable).on('click', `.${this.editableBrickClass} .snb-brick-actions .snb-edit `, function() {
             let $brick = $(this).parents(`.${_this.editableBrickClass}`)
 
-            _this.trigger('brick-editing', $brick.get(0))
+            const brick = $brick.get(0)
+            if (brick) {
+                _this.trigger('brick-editing', brick)
+            }
         })
 
         $(this.editable).on('click', `.${this.editableBrickClass} .snb-linebreaks .snb-linebreak-up `, function() {
@@ -78,6 +85,8 @@ export default class Editor implements EventsAwareInterface{
             let sel = window.getSelection();
             let cursor_position =  lastFocusedEl.length;
 
+            if (!sel) return;
+
             range.setStart(lastFocusedEl, cursor_position);
             range.collapse(true);
             sel.removeAllRanges();
@@ -87,9 +96,9 @@ export default class Editor implements EventsAwareInterface{
     }
 
     saveLastFocusedElement() {
-        let focusedElement: Node = window.getSelection().focusNode;
-        let parent = $(this.editable).get(0);
-        if ($.contains(parent, <Element>focusedElement)) {
+        const focusedElement = window.getSelection()?.focusNode;
+        const parent = $(this.editable).get(0);
+        if (focusedElement && parent && $.contains(parent, focusedElement as Element)) {
             $(this.snEditor).data('last_focused_element', focusedElement)
         }
     }
