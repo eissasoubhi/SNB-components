@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -31,6 +32,15 @@ const packOutput = execFileSync(
 const [pack] = JSON.parse(packOutput);
 const files = new Set(pack.files.map(({ path: file }) => file));
 const tarballPath = path.join(tarballDir, pack.filename);
+const tarballBytes = await readFile(tarballPath);
+const actualShasum = createHash('sha1').update(tarballBytes).digest('hex');
+const actualIntegrity = `sha512-${createHash('sha512').update(tarballBytes).digest('base64')}`;
+if (pack.shasum !== actualShasum) {
+  throw new Error(`npm pack shasum does not match the exact tarball bytes: reported=${pack.shasum}; actual=${actualShasum}`);
+}
+if (pack.integrity !== actualIntegrity) {
+  throw new Error(`npm pack integrity does not match the exact tarball bytes: reported=${pack.integrity}; actual=${actualIntegrity}`);
+}
 
 const required = [
   'package.json',
@@ -165,7 +175,7 @@ try {
   throw new Error(`Installed TypeScript declarations do not cover the runtime export surface.\n${stdout}${stderr}`);
 }
 
-console.log(`Validated exact tarball for independent snb-components@${manifest.version} (${files.size} files; ${esmExports.length} exports covered by staged and installed ESM/CommonJS, browser UMD, and TypeScript declarations).`);
+console.log(`Validated exact tarball for independent snb-components@${manifest.version} (${files.size} files; ${esmExports.length} exports covered by staged and installed ESM/CommonJS, browser UMD, TypeScript declarations, and npm tarball integrity metadata).`);
 await Promise.all([
   rm(stagedDir, { recursive: true, force: true }),
   rm(tarballDir, { recursive: true, force: true }),
