@@ -3,6 +3,7 @@ import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import vm from 'node:vm';
 
 const toolingDir = path.resolve(import.meta.dirname, '..');
 const repoDir = path.resolve(toolingDir, '..');
@@ -65,6 +66,14 @@ const require = createRequire(path.join(stagedDir, 'package.json'));
 const cjs = require(path.join(stagedDir, 'dist/index.umd.cjs'));
 if (!cjs || !Object.keys(cjs).length) {
   throw new Error('Public CommonJS entrypoint has no exports.');
+}
+
+const browserSandbox = {};
+const umdSource = await readFile(path.join(stagedDir, 'dist/index.umd.cjs'), 'utf8');
+vm.runInNewContext(umdSource, browserSandbox, { filename: 'index.umd.cjs' });
+const browserGlobal = browserSandbox.SummernoteBricksCore;
+if (!browserGlobal || !Object.keys(browserGlobal).length) {
+  throw new Error('Public UMD browser artifact did not expose the SummernoteBricksCore global.');
 }
 
 console.log(`Validated independent snb-components@${manifest.version} candidate (${files.size} files).`);
