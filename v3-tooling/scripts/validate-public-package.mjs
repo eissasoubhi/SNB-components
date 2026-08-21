@@ -8,21 +8,29 @@ import vm from 'node:vm';
 const toolingDir = path.resolve(import.meta.dirname, '..');
 const repoDir = path.resolve(toolingDir, '..');
 const stagedDir = path.join(toolingDir, '.public-package');
+const tarballDir = path.join(toolingDir, '.public-tarball');
+const consumerDir = path.join(toolingDir, '.public-consumer');
 
-await rm(stagedDir, { recursive: true, force: true });
-await mkdir(stagedDir, { recursive: true });
+await Promise.all([
+  rm(stagedDir, { recursive: true, force: true }),
+  rm(tarballDir, { recursive: true, force: true }),
+  rm(consumerDir, { recursive: true, force: true }),
+]);
+await Promise.all([mkdir(stagedDir, { recursive: true }), mkdir(tarballDir, { recursive: true })]);
 
 await cp(path.join(toolingDir, 'dist'), path.join(stagedDir, 'dist'), { recursive: true });
 await cp(path.join(repoDir, 'README.md'), path.join(stagedDir, 'README.md'));
 await cp(path.join(repoDir, 'LICENSE'), path.join(stagedDir, 'LICENSE'));
 await writeFile(path.join(stagedDir, 'package.json'), await readFile(path.join(repoDir, 'package.v3.json')));
 
-const packOutput = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
-  cwd: stagedDir,
-  encoding: 'utf8',
-});
+const packOutput = execFileSync(
+  'npm',
+  ['pack', '--json', '--ignore-scripts', '--pack-destination', tarballDir],
+  { cwd: stagedDir, encoding: 'utf8' },
+);
 const [pack] = JSON.parse(packOutput);
 const files = new Set(pack.files.map(({ path: file }) => file));
+const tarballPath = path.join(tarballDir, pack.filename);
 
 const required = [
   'package.json',
@@ -92,17 +100,46 @@ for (const [format, names] of [['CommonJS', cjsExports], ['browser UMD', browser
   }
 }
 
-// Runtime parity is not sufficient for a TypeScript package: every value that
-// consumers can import at runtime must also be importable through the shipped
-// declaration entrypoint. Compile a synthetic consumer against the staged
-// declarations so a missing/renamed declaration fails the package gate.
-const typeProbePath = path.join(stagedDir, 'type-contract-probe.ts');
+// Validate the artifact consumers will actually receive, not only the staged
+// directory used to create it. Install the exact npm-pack tarball into a clean
+// project and resolve the package through its public ESM/CommonJS exports.
+await mkdir(consumerDir, { recursive: true });
+await writeFile(path.join(consumerDir, 'package.json'), '{"name":"snb-components-v3-consumer","private":true,"type":"module"}\n');
+execFileSync(
+  'npm',
+  ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--no-package-lock', tarballPath],
+  { cwd: consumerDir, stdio: 'pipe' },
+);
+
+const installedManifest = JSON.parse(
+  await readFile(path.join(consumerDir, 'node_modules/snb-components/package.json'), 'utf8'),
+);
+if (installedManifest.version !== manifest.version) {
+  throw new Error(`Clean consumer installed ${installedManifest.version}; expected ${manifest.version}.`);
+}
+
+const consumerEsmExports = JSON.parse(execFileSync(
+  process.execPath,
+  ['--input-type=module', '--eval', "import('snb-components').then(m => console.log(JSON.stringify(Object.keys(m).filter(k => k !== 'default').sort())))"],
+  { cwd: consumerDir, encoding: 'utf8' },
+).trim());
+const consumerCjsExports = JSON.parse(execFileSync(
+  process.execPath,
+  ['--input-type=commonjs', '--eval', "console.log(JSON.stringify(Object.keys(require('snb-components')).filter(k => k !== '__esModule' && k !== 'default').sort()))"],
+  { cwd: consumerDir, encoding: 'utf8' },
+).trim());
+for (const [format, names] of [['installed ESM', consumerEsmExports], ['installed CommonJS', consumerCjsExports]]) {
+  if (JSON.stringify(names) !== expectedExports) {
+    throw new Error(`Public ${format} exports differ from staged ESM exports.`);
+  }
+}
+
+// Every runtime value must also be importable through the declarations reached
+// by normal package resolution from the clean consumer installation.
+const typeProbePath = path.join(consumerDir, 'type-contract-probe.ts');
 const importedBindings = esmExports.map((name, index) => `${name} as export${index}`).join(', ');
 const touchedBindings = esmExports.map((_, index) => `void export${index};`).join('\n');
-await writeFile(
-  typeProbePath,
-  `import { ${importedBindings} } from './dist/types/index.js';\n${touchedBindings}\n`,
-);
+await writeFile(typeProbePath, `import { ${importedBindings} } from 'snb-components';\n${touchedBindings}\n`);
 
 try {
   execFileSync(
@@ -120,15 +157,17 @@ try {
       'Bundler',
       typeProbePath,
     ],
-    { cwd: stagedDir, stdio: 'pipe' },
+    { cwd: consumerDir, stdio: 'pipe' },
   );
 } catch (error) {
   const stdout = error?.stdout?.toString?.() ?? '';
   const stderr = error?.stderr?.toString?.() ?? '';
-  throw new Error(`Public TypeScript declarations do not cover the runtime export surface.\n${stdout}${stderr}`);
-} finally {
-  await rm(typeProbePath, { force: true });
+  throw new Error(`Installed TypeScript declarations do not cover the runtime export surface.\n${stdout}${stderr}`);
 }
 
-console.log(`Validated independent snb-components@${manifest.version} candidate (${files.size} files; ${esmExports.length} runtime exports covered by ESM/CommonJS/UMD and TypeScript declarations).`);
-await rm(stagedDir, { recursive: true, force: true });
+console.log(`Validated exact tarball for independent snb-components@${manifest.version} (${files.size} files; ${esmExports.length} exports covered by staged and installed ESM/CommonJS, browser UMD, and TypeScript declarations).`);
+await Promise.all([
+  rm(stagedDir, { recursive: true, force: true }),
+  rm(tarballDir, { recursive: true, force: true }),
+  rm(consumerDir, { recursive: true, force: true }),
+]);
