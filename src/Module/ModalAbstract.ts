@@ -10,7 +10,7 @@ import MessageFactoriesProvider from "../MessageFactoriesProvider";
 
 
 export default abstract class ModalAbstract implements ModalInterface, EventsAwareInterface{
-    protected $modal: JQuery;
+    protected $modal!: JQuery;
     protected eventManager: EventsAwareInterface;
     protected readonly options: ModalOptionsInterface;
     protected mode: ModalModeInterface;
@@ -88,7 +88,9 @@ export default abstract class ModalAbstract implements ModalInterface, EventsAwa
         for (let i = 0; i < errors.length; i++) {
             const messageNode = errorMessageFactory(errors[i])
 
-            this.getMessagesContainer().append(messageNode)
+            if (messageNode) {
+                this.getMessagesContainer().append(messageNode)
+            }
         }
     }
 
