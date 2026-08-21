@@ -3,18 +3,18 @@ import DataManagerOptionsInterface from "./Interfaces/DataManagerOptionsInterfac
 import {EventsAwareInterface} from "./Interfaces";
 
 export default class DataManager implements EventsAwareInterface{
-    private fetch_type?: string;
+    private fetch_type?: 'data' | 'url';
     private options: DataManagerOptionsInterface;
-    private current_page: number;
-    private is_fetching_locked: boolean;
-    private event: EventManager;
-    private fetch_url: string;
+    private current_page = 0;
+    private is_fetching_locked = false;
+    private event = new EventManager();
+    private fetch_url?: string;
 
     constructor(options: DataManagerOptionsInterface) {
         this.options = {
             ...{
                 // full http url for fetching data
-                url: null,
+                url: undefined,
 
                 // array of objects with 'src' and 'title' keys
                 data: [],
@@ -40,7 +40,7 @@ export default class DataManager implements EventsAwareInterface{
         this.is_fetching_locked = false;
         this.event = new EventManager();
         this.fetch_url = this.options.url;
-        this.fetch_type = this.options.data.length ? 'data' : (this.fetch_url ? 'url' : null);
+        this.fetch_type = this.options.data?.length ? 'data' : (this.fetch_url ? 'url' : undefined);
     }
 
     // stop data fetching if neither next page link nor data were found
@@ -85,10 +85,17 @@ export default class DataManager implements EventsAwareInterface{
         if (this.fetch_type == 'data') {
 
             this.event.trigger('beforeFetch');
-            this.event.trigger('fetch', { data: this.options.formater(this.options.data, 1, null) });
+            this.event.trigger('fetch', { data: this.options.formater(this.options.data ?? [], 1, null) });
             this.event.trigger('afterFetch');
 
         } else if (this.fetch_type == 'url') {
+
+            if (!this.fetch_url) {
+                this.event.trigger('error', {
+                    error: "options 'data' or 'url' must be set"
+                });
+                return;
+            }
 
             // Prevent simultaneous requests.
             // Because we need to get the next page link from each request,
