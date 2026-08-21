@@ -57,14 +57,20 @@ if (manifest.exports?.['.']?.import !== './dist/index.js' || manifest.exports?.[
   throw new Error('Public package exports do not match the built artifacts.');
 }
 
+const publicExportNames = (value) => Object.keys(value ?? {})
+  .filter((name) => name !== '__esModule' && name !== 'default')
+  .sort();
+
 const esm = await import(pathToFileURL(path.join(stagedDir, 'dist/index.js')).href);
-if (!Object.keys(esm).length) {
+const esmExports = publicExportNames(esm);
+if (!esmExports.length) {
   throw new Error('Public ESM entrypoint has no exports.');
 }
 
 const require = createRequire(path.join(stagedDir, 'package.json'));
 const cjs = require(path.join(stagedDir, 'dist/index.umd.cjs'));
-if (!cjs || !Object.keys(cjs).length) {
+const cjsExports = publicExportNames(cjs);
+if (!cjsExports.length) {
   throw new Error('Public CommonJS entrypoint has no exports.');
 }
 
@@ -72,9 +78,19 @@ const browserSandbox = {};
 const umdSource = await readFile(path.join(stagedDir, 'dist/index.umd.cjs'), 'utf8');
 vm.runInNewContext(umdSource, browserSandbox, { filename: 'index.umd.cjs' });
 const browserGlobal = browserSandbox.SummernoteBricksCore;
-if (!browserGlobal || !Object.keys(browserGlobal).length) {
+const browserExports = publicExportNames(browserGlobal);
+if (!browserExports.length) {
   throw new Error('Public UMD browser artifact did not expose the SummernoteBricksCore global.');
 }
 
-console.log(`Validated independent snb-components@${manifest.version} candidate (${files.size} files).`);
+const expectedExports = JSON.stringify(esmExports);
+for (const [format, names] of [['CommonJS', cjsExports], ['browser UMD', browserExports]]) {
+  if (JSON.stringify(names) !== expectedExports) {
+    throw new Error(
+      `Public ${format} exports differ from ESM exports: ESM=${esmExports.join(', ')}; ${format}=${names.join(', ')}`,
+    );
+  }
+}
+
+console.log(`Validated independent snb-components@${manifest.version} candidate (${files.size} files; ${esmExports.length} public exports).`);
 await rm(stagedDir, { recursive: true, force: true });
