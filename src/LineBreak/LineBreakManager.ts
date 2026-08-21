@@ -7,7 +7,6 @@ export default class LineBreakManager {
     public snbRemoveLineBreakBtnClass = 'snb-remove-line-break-btn'
     public snbRemovableLineBreakClass = 'snb-removable-line-break'
     public highlightedLinebreakClass = 'highlighted'
-    public LinebreakSide: LinebreakSideEnum
 
     constructor(editor: Editor) {
         this.editor = editor

@@ -20,7 +20,7 @@ export default abstract class BrickCreatingModeAbstract extends ModalModeAbstrac
         this.editor.insertHtml(this.createBlankLine(data))
     }
 
-    createStyle(data: DataInterface): string {
+    createStyle(data: DataInterface): string | null {
         const jsxElement = this.getBrickStyleTemplate(data)
 
         if (!jsxElement) return null

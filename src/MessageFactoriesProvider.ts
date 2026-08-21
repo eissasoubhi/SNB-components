@@ -2,7 +2,7 @@ import MessagesFactoriesInterface from "./Module/Interfaces/MessagesFactoriesInt
 
 export default abstract class MessageFactoriesProvider {
 
-    getMessageFactory(factoryType: string): (message: string) => HTMLElement | null{
+    getMessageFactory(factoryType: string): ((message: string) => HTMLElement | null) | null {
         const factories = this.getMessagesFactories()
 
         if (typeof factories[factoryType] !== 'undefined') {
