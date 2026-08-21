@@ -92,5 +92,43 @@ for (const [format, names] of [['CommonJS', cjsExports], ['browser UMD', browser
   }
 }
 
-console.log(`Validated independent snb-components@${manifest.version} candidate (${files.size} files; ${esmExports.length} public exports).`);
+// Runtime parity is not sufficient for a TypeScript package: every value that
+// consumers can import at runtime must also be importable through the shipped
+// declaration entrypoint. Compile a synthetic consumer against the staged
+// declarations so a missing/renamed declaration fails the package gate.
+const typeProbePath = path.join(stagedDir, 'type-contract-probe.ts');
+const importedBindings = esmExports.map((name, index) => `${name} as export${index}`).join(', ');
+const touchedBindings = esmExports.map((_, index) => `void export${index};`).join('\n');
+await writeFile(
+  typeProbePath,
+  `import { ${importedBindings} } from './dist/types/index.js';\n${touchedBindings}\n`,
+);
+
+try {
+  execFileSync(
+    process.execPath,
+    [
+      path.join(toolingDir, 'node_modules/typescript/bin/tsc'),
+      '--noEmit',
+      '--strict',
+      '--skipLibCheck',
+      '--target',
+      'ES2022',
+      '--module',
+      'ESNext',
+      '--moduleResolution',
+      'Bundler',
+      typeProbePath,
+    ],
+    { cwd: stagedDir, stdio: 'pipe' },
+  );
+} catch (error) {
+  const stdout = error?.stdout?.toString?.() ?? '';
+  const stderr = error?.stderr?.toString?.() ?? '';
+  throw new Error(`Public TypeScript declarations do not cover the runtime export surface.\n${stdout}${stderr}`);
+} finally {
+  await rm(typeProbePath, { force: true });
+}
+
+console.log(`Validated independent snb-components@${manifest.version} candidate (${files.size} files; ${esmExports.length} runtime exports covered by ESM/CommonJS/UMD and TypeScript declarations).`);
 await rm(stagedDir, { recursive: true, force: true });
