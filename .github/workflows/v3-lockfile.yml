@@ -105,15 +105,91 @@ jobs:
             if (integrity !== fingerprint.integrity) throw new Error(`Node ${major} archived tarball SHA-512 differs from its fingerprint`);
             if (sha256 !== fingerprint.sha256) throw new Error(`Node ${major} archived tarball SHA-256 differs from its fingerprint`);
             if (bytes.length !== fingerprint.bytes) throw new Error(`Node ${major} archived tarball byte size differs from its fingerprint`);
-            return { major, sha256, bytes: bytes.length };
+            return { major, archive, sha256, bytes: bytes.length };
           };
 
           const archives = fingerprints.map(archiveFor);
           if (archives[0].sha256 !== archives[1].sha256 || archives[0].bytes !== archives[1].bytes) {
-            throw new Error(`Archived Node 22/24 tarballs are not byte-identical`);
+            throw new Error('Archived Node 22/24 tarballs are not byte-identical');
           }
 
           console.log(
             `Verified identical archived ${first.filename} across ${first.node}/npm ${first.npm} and ${second.node}/npm ${second.npm} (sha256=${first.sha256}).`,
+          );
+          NODE
+      - name: Install downloaded tarballs in clean consumers
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const os = require('node:os');
+          const path = require('node:path');
+          const { execFileSync } = require('node:child_process');
+
+          const fingerprintFiles = fs.readdirSync('evidence')
+            .filter((name) => name.startsWith('pack-fingerprint-node-') && name.endsWith('.json'))
+            .sort();
+          if (fingerprintFiles.length !== 2) {
+            throw new Error(`Expected two Node-version fingerprints; found ${fingerprintFiles.length}`);
+          }
+
+          const normalizedExports = (command, args, cwd) => JSON.parse(
+            execFileSync(command, args, { cwd, encoding: 'utf8' }).trim(),
+          );
+          const results = [];
+
+          for (const fingerprintFile of fingerprintFiles) {
+            const fingerprint = JSON.parse(fs.readFileSync(path.join('evidence', fingerprintFile), 'utf8'));
+            const major = fingerprint.node.match(/^v(\d+)\./)?.[1];
+            if (!major) throw new Error(`Cannot identify Node major from ${fingerprint.node}`);
+            const archive = path.resolve('evidence', `package-node-${major}.tgz`);
+            if (!fs.existsSync(archive)) throw new Error(`Missing downloaded tarball for Node ${major}`);
+
+            const consumer = fs.mkdtempSync(path.join(os.tmpdir(), `snb-components-artifact-node-${major}-`));
+            try {
+              fs.writeFileSync(
+                path.join(consumer, 'package.json'),
+                '{"name":"artifact-consumer","private":true,"type":"module"}\n',
+              );
+              execFileSync(
+                'npm',
+                ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--no-package-lock', archive],
+                { cwd: consumer, stdio: 'pipe' },
+              );
+
+              const manifest = JSON.parse(
+                fs.readFileSync(path.join(consumer, 'node_modules/snb-components/package.json'), 'utf8'),
+              );
+              if (manifest.name !== fingerprint.package || manifest.version !== fingerprint.version) {
+                throw new Error(
+                  `Downloaded Node ${major} tarball installed ${manifest.name}@${manifest.version}; expected ${fingerprint.package}@${fingerprint.version}`,
+                );
+              }
+
+              const esm = normalizedExports(
+                process.execPath,
+                ['--input-type=module', '--eval', "import('snb-components').then(m => console.log(JSON.stringify(Object.keys(m).filter(k => k !== 'default').sort())))"],
+                consumer,
+              );
+              const cjs = normalizedExports(
+                process.execPath,
+                ['--input-type=commonjs', '--eval', "console.log(JSON.stringify(Object.keys(require('snb-components')).filter(k => k !== '__esModule' && k !== 'default').sort()))"],
+                consumer,
+              );
+              if (!esm.length || JSON.stringify(esm) !== JSON.stringify(cjs)) {
+                throw new Error(`Downloaded Node ${major} tarball has invalid or mismatched installed ESM/CommonJS exports`);
+              }
+
+              results.push({ major, package: manifest.name, version: manifest.version, exports: esm });
+            } finally {
+              fs.rmSync(consumer, { recursive: true, force: true });
+            }
+          }
+
+          if (JSON.stringify(results[0].exports) !== JSON.stringify(results[1].exports)) {
+            throw new Error('Downloaded Node 22/24 tarballs expose different installed runtime surfaces');
+          }
+
+          console.log(
+            `Installed both downloaded ${results[0].package}@${results[0].version} artifacts in clean consumers with ${results[0].exports.length} matching ESM/CommonJS exports.`,
           );
           NODE
