@@ -8,9 +8,14 @@
   "types": "./dist/types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.umd.cjs"
+      "import": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/types/index.d.cts",
+        "default": "./dist/index.umd.cjs"
+      }
     }
   },
   "files": [
@@ -19,10 +24,10 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:js": "vite build --config vite.config.ts",
-    "build:types": "tsc -p tsconfig.build.json",
+    "build:types": "tsc -p tsconfig.build.json && node scripts/fix-declaration-specifiers.mjs",
     "build": "npm run build:js && npm run build:types",
     "test": "vitest run --config vitest.config.ts",
-    "pack:check": "node scripts/validate-public-package.mjs && node scripts/verify-pack-reproducibility.mjs",
+    "pack:check": "node scripts/validate-public-package.mjs && node scripts/verify-node-types-resolution.mjs && node scripts/verify-pack-reproducibility.mjs",
     "check": "npm run typecheck && npm run test && npm run build && npm run pack:check"
   },
   "devDependencies": {
