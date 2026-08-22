@@ -1,13 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 const toolingDir = path.resolve(import.meta.dirname, '..');
 const repoDir = path.resolve(toolingDir, '..');
-const tempRoot = await mkdir(path.join(os.tmpdir(), 'snb-components-node-types-'), { recursive: false }).catch(async () => {
-  return await (await import('node:fs/promises')).mkdtemp(path.join(os.tmpdir(), 'snb-components-node-types-'));
-});
+const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'snb-components-node-types-'));
 const stagingDir = path.join(tempRoot, 'package');
 const consumerDir = path.join(tempRoot, 'consumer');
 
@@ -32,15 +30,15 @@ try {
   });
 
   const manifest = JSON.parse(await readFile(path.join(consumerDir, 'node_modules/snb-components/package.json'), 'utf8'));
-  const source = await readFile(path.join(toolingDir, 'dist/index.js'), 'utf8');
-  const exportNames = [...source.matchAll(/export\s*\{([^}]+)\}/g)]
-    .flatMap((match) => match[1].split(','))
-    .map((entry) => entry.trim().split(/\s+as\s+/).at(-1))
-    .filter(Boolean);
-  if (!exportNames.length) throw new Error('Could not derive public ESM export names for Node resolution probes.');
+  const runtimeExports = JSON.parse(execFileSync(
+    process.execPath,
+    ['--input-type=module', '--eval', "import('snb-components').then(m => console.log(JSON.stringify(Object.keys(m).filter(k => k !== 'default').sort())))"],
+    { cwd: consumerDir, encoding: 'utf8' },
+  ).trim());
+  if (!runtimeExports.length) throw new Error('Installed package has no public ESM exports for TypeScript resolution probes.');
 
-  const bindings = exportNames.map((name, index) => `${name} as value${index}`).join(', ');
-  const touches = exportNames.map((_, index) => `void value${index};`).join('\n');
+  const bindings = runtimeExports.map((name, index) => `${name} as value${index}`).join(', ');
+  const touches = runtimeExports.map((_, index) => `void value${index};`).join('\n');
   const probe = `import { ${bindings} } from 'snb-components';\n${touches}\n`;
   const cases = [
     { file: 'probe.mts', module: 'NodeNext', resolution: 'NodeNext' },
