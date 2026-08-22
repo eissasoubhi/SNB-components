@@ -33,4 +33,62 @@ jobs:
         run: npm ci
       - name: Validate v3 tooling package
         working-directory: v3-tooling
+        env:
+          PACK_FINGERPRINT_OUT: pack-fingerprint-node-${{ matrix.node }}.json
         run: npm run check
+      - name: Upload npm pack fingerprint
+        uses: actions/upload-artifact@v6
+        with:
+          name: pack-fingerprint-node-${{ matrix.node }}
+          path: v3-tooling/pack-fingerprint-node-${{ matrix.node }}.json
+          if-no-files-found: error
+          retention-days: 7
+
+  cross-node-package:
+    name: Cross-node npm tarball identity
+    needs: quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Download Node 22/24 fingerprints
+        uses: actions/download-artifact@v7
+        with:
+          pattern: pack-fingerprint-node-*
+          path: fingerprints
+          merge-multiple: true
+      - name: Require identical package bytes across Node 22/24
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const files = fs.readdirSync('fingerprints')
+            .filter((name) => name.endsWith('.json'))
+            .map((name) => path.join('fingerprints', name));
+          if (files.length !== 2) {
+            throw new Error(`Expected two Node-version fingerprints; found ${files.length}`);
+          }
+
+          const fingerprints = files.map((file) => JSON.parse(fs.readFileSync(file, 'utf8')));
+          const nodes = fingerprints.map(({ node }) => node).sort();
+          if (!nodes.some((node) => node.startsWith('v22.')) || !nodes.some((node) => node.startsWith('v24.'))) {
+            throw new Error(`Expected Node 22 and Node 24 fingerprints; got ${nodes.join(', ')}`);
+          }
+
+          const fields = ['package', 'version', 'filename', 'shasum', 'integrity', 'sha256', 'bytes'];
+          const [first, second] = fingerprints;
+          for (const field of fields) {
+            if (first[field] !== second[field]) {
+              throw new Error(
+                `Node 22/24 npm pack output differs for ${field}: ${first.node}/npm ${first.npm}=${first[field]}; ${second.node}/npm ${second.npm}=${second[field]}`,
+              );
+            }
+          }
+
+          console.log(
+            `Verified identical ${first.filename} across ${first.node}/npm ${first.npm} and ${second.node}/npm ${second.npm} (sha256=${first.sha256}).`,
+          );
+          NODE
