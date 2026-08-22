@@ -52,6 +52,7 @@ const required = [
   'dist/index.umd.cjs.map',
   'dist/types/index.d.ts',
   'dist/types/index.d.ts.map',
+  'dist/types/index.d.cts',
 ];
 const missing = required.filter((file) => !files.has(file));
 if (missing.length) {
@@ -71,8 +72,14 @@ if (manifest.name !== 'snb-components' || manifest.version !== '3.0.0-rc.0') {
 if (manifest.main !== './dist/index.umd.cjs' || manifest.module !== './dist/index.js' || manifest.types !== './dist/types/index.d.ts') {
   throw new Error('Public package entrypoints do not match the built artifacts.');
 }
-if (manifest.exports?.['.']?.import !== './dist/index.js' || manifest.exports?.['.']?.require !== './dist/index.umd.cjs' || manifest.exports?.['.']?.types !== './dist/types/index.d.ts') {
-  throw new Error('Public package exports do not match the built artifacts.');
+const rootExport = manifest.exports?.['.'];
+if (
+  rootExport?.import?.types !== './dist/types/index.d.ts' ||
+  rootExport?.import?.default !== './dist/index.js' ||
+  rootExport?.require?.types !== './dist/types/index.d.cts' ||
+  rootExport?.require?.default !== './dist/index.umd.cjs'
+) {
+  throw new Error('Public package conditional exports do not match the built runtime and declaration artifacts.');
 }
 
 const publicExportNames = (value) => Object.keys(value ?? {})
@@ -127,7 +134,6 @@ const installedManifest = JSON.parse(
 if (installedManifest.version !== manifest.version) {
   throw new Error(`Clean consumer installed ${installedManifest.version}; expected ${manifest.version}.`);
 }
-
 const consumerEsmExports = JSON.parse(execFileSync(
   process.execPath,
   ['--input-type=module', '--eval', "import('snb-components').then(m => console.log(JSON.stringify(Object.keys(m).filter(k => k !== 'default').sort())))"],
