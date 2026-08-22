@@ -34,13 +34,13 @@ jobs:
       - name: Validate v3 tooling package
         working-directory: v3-tooling
         env:
-          PACK_FINGERPRINT_OUT: pack-fingerprint.json
+          PACK_FINGERPRINT_OUT: pack-fingerprint-node-${{ matrix.node }}.json
         run: npm run check
       - name: Upload npm pack fingerprint
         uses: actions/upload-artifact@v6
         with:
           name: pack-fingerprint-node-${{ matrix.node }}
-          path: v3-tooling/pack-fingerprint.json
+          path: v3-tooling/pack-fingerprint-node-${{ matrix.node }}.json
           if-no-files-found: error
           retention-days: 7
 
@@ -83,7 +83,7 @@ jobs:
           for (const field of fields) {
             if (first[field] !== second[field]) {
               throw new Error(
-                `Node 22/24 npm pack output differs for ${field}: ${first.node}/${first.npm}=${first[field]}; ${second.node}/${second.npm}=${second[field]}`,
+                `Node 22/24 npm pack output differs for ${field}: ${first.node}/npm ${first.npm}=${first[field]}; ${second.node}/npm ${second.npm}=${second[field]}`,
               );
             }
           }
