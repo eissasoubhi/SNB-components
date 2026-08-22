@@ -3,19 +3,21 @@ import path from 'node:path';
 
 const typesDir = path.resolve(import.meta.dirname, '../dist/types');
 const files = await readdir(typesDir, { recursive: true });
+const declarationFiles = files.filter((relative) => relative.endsWith('.d.ts'));
 
-for (const relative of files) {
-  if (!relative.endsWith('.d.ts')) continue;
+const rewriteSpecifiers = (source, extension) => source.replace(
+  /(from\s+['"]|import\s*\(\s*['"])(\.\.?\/[^'"]+?)(['"])/g,
+  (match, prefix, specifier, suffix) => {
+    if (/\.(?:[cm]?js|json|node)$/.test(specifier)) return match;
+    return `${prefix}${specifier}${extension}${suffix}`;
+  },
+);
 
+for (const relative of declarationFiles) {
   const file = path.join(typesDir, relative);
   const source = await readFile(file, 'utf8');
-  const rewritten = source.replace(
-    /(from\s+['"]|import\s*\(\s*['"])(\.\.?\/[^'"]+?)(['"])/g,
-    (match, prefix, specifier, suffix) => {
-      if (/\.(?:[cm]?js|json|node)$/.test(specifier)) return match;
-      return `${prefix}${specifier}.js${suffix}`;
-    },
-  );
+  await writeFile(file, rewriteSpecifiers(source, '.js'));
 
-  if (rewritten !== source) await writeFile(file, rewritten);
+  const ctsFile = file.replace(/\.d\.ts$/, '.d.cts');
+  await writeFile(ctsFile, rewriteSpecifiers(source, '.cjs'));
 }
