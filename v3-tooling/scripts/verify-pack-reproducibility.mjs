@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const toolingDir = path.resolve(import.meta.dirname, '..');
@@ -8,6 +8,9 @@ const repoDir = path.resolve(toolingDir, '..');
 const workDir = path.join(toolingDir, '.pack-reproducibility');
 const fingerprintOutput = process.env.PACK_FINGERPRINT_OUT
   ? path.resolve(toolingDir, process.env.PACK_FINGERPRINT_OUT)
+  : undefined;
+const tarballOutput = process.env.PACK_TARBALL_OUT
+  ? path.resolve(toolingDir, process.env.PACK_TARBALL_OUT)
   : undefined;
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -37,6 +40,7 @@ async function packCandidate(name) {
     integrity: pack.integrity,
     sha256: sha256(bytes),
     bytes: bytes.length,
+    tarballPath,
   };
 }
 
@@ -60,11 +64,19 @@ try {
     const fingerprint = {
       package: manifest.name,
       version: manifest.version,
-      ...first,
+      filename: first.filename,
+      shasum: first.shasum,
+      integrity: first.integrity,
+      sha256: first.sha256,
+      bytes: first.bytes,
       node: process.version,
       npm: execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim(),
     };
     await writeFile(fingerprintOutput, `${JSON.stringify(fingerprint, null, 2)}\n`);
+  }
+
+  if (tarballOutput) {
+    await copyFile(first.tarballPath, tarballOutput);
   }
 
   console.log(

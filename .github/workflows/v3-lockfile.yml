@@ -35,12 +35,15 @@ jobs:
         working-directory: v3-tooling
         env:
           PACK_FINGERPRINT_OUT: pack-fingerprint-node-${{ matrix.node }}.json
+          PACK_TARBALL_OUT: package-node-${{ matrix.node }}.tgz
         run: npm run check
-      - name: Upload npm pack fingerprint
+      - name: Upload exact npm pack evidence
         uses: actions/upload-artifact@v6
         with:
-          name: pack-fingerprint-node-${{ matrix.node }}
-          path: v3-tooling/pack-fingerprint-node-${{ matrix.node }}.json
+          name: pack-evidence-node-${{ matrix.node }}
+          path: |
+            v3-tooling/pack-fingerprint-node-${{ matrix.node }}.json
+            v3-tooling/package-node-${{ matrix.node }}.tgz
           if-no-files-found: error
           retention-days: 7
 
@@ -53,26 +56,27 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - name: Download Node 22/24 fingerprints
+      - name: Download Node 22/24 package evidence
         uses: actions/download-artifact@v7
         with:
-          pattern: pack-fingerprint-node-*
-          path: fingerprints
+          pattern: pack-evidence-node-*
+          path: evidence
           merge-multiple: true
-      - name: Require identical package bytes across Node 22/24
+      - name: Require identical archived package bytes across Node 22/24
         run: |
           node <<'NODE'
+          const crypto = require('node:crypto');
           const fs = require('node:fs');
           const path = require('node:path');
 
-          const files = fs.readdirSync('fingerprints')
-            .filter((name) => name.endsWith('.json'))
-            .map((name) => path.join('fingerprints', name));
-          if (files.length !== 2) {
-            throw new Error(`Expected two Node-version fingerprints; found ${files.length}`);
+          const fingerprintFiles = fs.readdirSync('evidence')
+            .filter((name) => name.startsWith('pack-fingerprint-node-') && name.endsWith('.json'))
+            .map((name) => path.join('evidence', name));
+          if (fingerprintFiles.length !== 2) {
+            throw new Error(`Expected two Node-version fingerprints; found ${fingerprintFiles.length}`);
           }
 
-          const fingerprints = files.map((file) => JSON.parse(fs.readFileSync(file, 'utf8')));
+          const fingerprints = fingerprintFiles.map((file) => JSON.parse(fs.readFileSync(file, 'utf8')));
           const nodes = fingerprints.map(({ node }) => node).sort();
           if (!nodes.some((node) => node.startsWith('v22.')) || !nodes.some((node) => node.startsWith('v24.'))) {
             throw new Error(`Expected Node 22 and Node 24 fingerprints; got ${nodes.join(', ')}`);
@@ -88,7 +92,28 @@ jobs:
             }
           }
 
+          const archiveFor = (fingerprint) => {
+            const major = fingerprint.node.match(/^v(\d+)\./)?.[1];
+            if (!major) throw new Error(`Cannot identify Node major from ${fingerprint.node}`);
+            const archive = path.join('evidence', `package-node-${major}.tgz`);
+            if (!fs.existsSync(archive)) throw new Error(`Missing archived tarball for Node ${major}`);
+            const bytes = fs.readFileSync(archive);
+            const shasum = crypto.createHash('sha1').update(bytes).digest('hex');
+            const integrity = `sha512-${crypto.createHash('sha512').update(bytes).digest('base64')}`;
+            const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+            if (shasum !== fingerprint.shasum) throw new Error(`Node ${major} archived tarball SHA-1 differs from its fingerprint`);
+            if (integrity !== fingerprint.integrity) throw new Error(`Node ${major} archived tarball SHA-512 differs from its fingerprint`);
+            if (sha256 !== fingerprint.sha256) throw new Error(`Node ${major} archived tarball SHA-256 differs from its fingerprint`);
+            if (bytes.length !== fingerprint.bytes) throw new Error(`Node ${major} archived tarball byte size differs from its fingerprint`);
+            return { major, sha256, bytes: bytes.length };
+          };
+
+          const archives = fingerprints.map(archiveFor);
+          if (archives[0].sha256 !== archives[1].sha256 || archives[0].bytes !== archives[1].bytes) {
+            throw new Error(`Archived Node 22/24 tarballs are not byte-identical`);
+          }
+
           console.log(
-            `Verified identical ${first.filename} across ${first.node}/npm ${first.npm} and ${second.node}/npm ${second.npm} (sha256=${first.sha256}).`,
+            `Verified identical archived ${first.filename} across ${first.node}/npm ${first.npm} and ${second.node}/npm ${second.npm} (sha256=${first.sha256}).`,
           );
           NODE
