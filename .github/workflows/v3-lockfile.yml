@@ -123,6 +123,7 @@ jobs:
           const fs = require('node:fs');
           const os = require('node:os');
           const path = require('node:path');
+          const vm = require('node:vm');
           const { execFileSync } = require('node:child_process');
 
           const fingerprintFiles = fs.readdirSync('evidence')
@@ -156,9 +157,8 @@ jobs:
                 { cwd: consumer, stdio: 'pipe' },
               );
 
-              const manifest = JSON.parse(
-                fs.readFileSync(path.join(consumer, 'node_modules/snb-components/package.json'), 'utf8'),
-              );
+              const packageDir = path.join(consumer, 'node_modules/snb-components');
+              const manifest = JSON.parse(fs.readFileSync(path.join(packageDir, 'package.json'), 'utf8'));
               if (manifest.name !== fingerprint.package || manifest.version !== fingerprint.version) {
                 throw new Error(
                   `Downloaded Node ${major} tarball installed ${manifest.name}@${manifest.version}; expected ${fingerprint.package}@${fingerprint.version}`,
@@ -179,6 +179,23 @@ jobs:
                 throw new Error(`Downloaded Node ${major} tarball has invalid or mismatched installed ESM/CommonJS exports`);
               }
 
+              const umdPath = path.join(packageDir, 'dist/index.umd.cjs');
+              if (!fs.existsSync(umdPath)) {
+                throw new Error(`Downloaded Node ${major} tarball is missing the browser UMD artifact`);
+              }
+              const sandbox = {};
+              vm.runInNewContext(fs.readFileSync(umdPath, 'utf8'), sandbox, { filename: 'index.umd.cjs' });
+              const umdGlobal = sandbox.SummernoteBricksCore;
+              if (!umdGlobal || typeof umdGlobal !== 'object') {
+                throw new Error(`Downloaded Node ${major} tarball did not expose SummernoteBricksCore in browser-global mode`);
+              }
+              const umd = Object.keys(umdGlobal)
+                .filter((key) => key !== '__esModule' && key !== 'default')
+                .sort();
+              if (!umd.length || JSON.stringify(esm) !== JSON.stringify(umd)) {
+                throw new Error(`Downloaded Node ${major} tarball has mismatched installed ESM/browser-UMD exports`);
+              }
+
               results.push({ major, package: manifest.name, version: manifest.version, exports: esm });
             } finally {
               fs.rmSync(consumer, { recursive: true, force: true });
@@ -190,6 +207,6 @@ jobs:
           }
 
           console.log(
-            `Installed both downloaded ${results[0].package}@${results[0].version} artifacts in clean consumers with ${results[0].exports.length} matching ESM/CommonJS exports.`,
+            `Installed both downloaded ${results[0].package}@${results[0].version} artifacts in clean consumers with ${results[0].exports.length} matching ESM/CommonJS/browser-UMD exports.`,
           );
           NODE
