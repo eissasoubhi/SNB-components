@@ -19,7 +19,7 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:js": "vite build --config vite.config.ts",
-    "build:types": "tsc -p tsconfig.build.json",
+    "build:types": "tsc -p tsconfig.build.json && node scripts/fix-declaration-specifiers.mjs",
     "build": "npm run build:js && npm run build:types",
     "test": "vitest run --config vitest.config.ts",
     "pack:check": "node scripts/validate-public-package.mjs && node scripts/verify-node-types-resolution.mjs && node scripts/verify-pack-reproducibility.mjs",
