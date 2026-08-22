@@ -41,12 +41,15 @@ Concrete plugins declare their own host peer ranges.
 `package.v3.json` defines the independent `3.0.0-rc.0` candidate:
 
 ```text
-dist/index.js          ESM
-dist/index.umd.cjs     CommonJS / browser artifact
-dist/types/index.d.ts  TypeScript declarations
+dist/index.js           ESM
+dist/index.umd.cjs      CommonJS / browser artifact
+dist/types/index.d.ts   ESM TypeScript declarations
+dist/types/index.d.cts  CommonJS TypeScript declarations
 ```
 
-The candidate includes package `exports` for import/require/types and restricts package contents to distribution files plus public documentation.
+The candidate uses conditional package `exports` so ESM imports resolve with the `.d.ts` declarations and CommonJS `require()` consumers resolve with the `.d.cts` declarations. The package gate validates the exact packed tarball through normal NodeNext/ESM and Node16/CommonJS TypeScript package resolution in addition to the runtime ESM/CommonJS/browser checks.
+
+Package contents remain restricted to distribution files plus public documentation.
 
 The historical root package remains preserved by design. Source readiness of the wider ecosystem does not automatically authorize replacing or publishing this package line.
 
@@ -60,7 +63,7 @@ npm ci
 npm run check
 ```
 
-`npm run check` performs strict typechecking, Vitest tests, Vite/TypeScript builds and package-shape validation.
+`npm run check` performs strict typechecking, Vitest tests, Vite/TypeScript builds, package-shape validation, exact-tarball consumer checks, and Node package-resolution checks for the shipped declarations.
 
 For contribution rules, package-boundary guidance, and release constraints, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
