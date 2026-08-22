@@ -1,2 +1,2 @@
-export * from './brick.js';
-export * from './summernote.js';
+export * from './brick';
+export * from './summernote';
