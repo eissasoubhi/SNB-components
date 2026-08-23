@@ -27,7 +27,7 @@
     "build:types": "tsc -p tsconfig.build.json && node scripts/fix-declaration-specifiers.mjs",
     "build": "npm run build:js && npm run build:types",
     "test": "vitest run --config vitest.config.ts",
-    "pack:check": "node scripts/verify-publish-safety.mjs && node scripts/validate-public-package.mjs && node scripts/verify-node-types-resolution.mjs && node scripts/verify-pack-reproducibility.mjs",
+    "pack:check": "node scripts/verify-publish-safety.mjs && node scripts/validate-public-package.mjs && node scripts/verify-node-types-resolution.mjs && node scripts/verify-sourcemap-portability.mjs && node scripts/verify-pack-reproducibility.mjs",
     "check": "npm run typecheck && npm run test && npm run build && npm run pack:check"
   },
   "devDependencies": {
