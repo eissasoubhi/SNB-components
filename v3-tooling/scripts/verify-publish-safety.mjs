@@ -58,6 +58,17 @@ if (declaredRuntimeDependencyFields.length) {
   );
 }
 
+const platformRestrictionFields = ['os', 'cpu', 'libc'];
+const declaredPlatformRestrictionFields = platformRestrictionFields.filter((name) =>
+  Object.hasOwn(manifest, name),
+);
+
+if (declaredPlatformRestrictionFields.length) {
+  throw new Error(
+    `Public v3 candidate must remain platform-neutral: ${declaredPlatformRestrictionFields.join(', ')}`,
+  );
+}
+
 console.log(
-  'Verified public v3 candidate has no npm install/publish lifecycle hooks, bundled dependencies, bin executables, or runtime/peer/optional dependency declarations.',
+  'Verified public v3 candidate has no npm install/publish lifecycle hooks, bundled dependencies, bin executables, runtime/peer/optional dependency declarations, or OS/CPU/libc install restrictions.',
 );
