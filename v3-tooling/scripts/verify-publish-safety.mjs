@@ -26,4 +26,21 @@ if (unsafeScripts.length) {
   );
 }
 
-console.log('Verified public v3 candidate has no npm install/publish lifecycle hooks.');
+const bundledDependencyFields = ['bundledDependencies', 'bundleDependencies'];
+const declaredBundledDependencyFields = bundledDependencyFields.filter((name) =>
+  Object.hasOwn(manifest, name),
+);
+
+if (declaredBundledDependencyFields.length) {
+  throw new Error(
+    `Public v3 candidate must not embed bundled dependencies: ${declaredBundledDependencyFields.join(', ')}`,
+  );
+}
+
+if (Object.hasOwn(manifest, 'bin')) {
+  throw new Error('Public v3 candidate must not install command-line executables via the npm bin field.');
+}
+
+console.log(
+  'Verified public v3 candidate has no npm install/publish lifecycle hooks, bundled dependencies, or bin executables.',
+);
