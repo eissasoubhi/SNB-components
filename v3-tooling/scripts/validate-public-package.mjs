@@ -53,6 +53,12 @@ const required = [
   'dist/types/index.d.ts',
   'dist/types/index.d.ts.map',
   'dist/types/index.d.cts',
+  'dist/types/brick.d.ts',
+  'dist/types/brick.d.ts.map',
+  'dist/types/brick.d.cts',
+  'dist/types/summernote.d.ts',
+  'dist/types/summernote.d.ts.map',
+  'dist/types/summernote.d.cts',
 ];
 const missing = required.filter((file) => !files.has(file));
 if (missing.length) {
