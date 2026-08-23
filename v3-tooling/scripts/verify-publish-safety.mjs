@@ -41,6 +41,23 @@ if (Object.hasOwn(manifest, 'bin')) {
   throw new Error('Public v3 candidate must not install command-line executables via the npm bin field.');
 }
 
+const runtimeDependencyFields = [
+  'dependencies',
+  'optionalDependencies',
+  'peerDependencies',
+  'peerDependenciesMeta',
+];
+const declaredRuntimeDependencyFields = runtimeDependencyFields.filter((name) => {
+  const value = manifest[name];
+  return value && typeof value === 'object' && Object.keys(value).length > 0;
+});
+
+if (declaredRuntimeDependencyFields.length) {
+  throw new Error(
+    `Public v3 candidate must remain dependency-free at runtime: ${declaredRuntimeDependencyFields.join(', ')}`,
+  );
+}
+
 console.log(
-  'Verified public v3 candidate has no npm install/publish lifecycle hooks, bundled dependencies, or bin executables.',
+  'Verified public v3 candidate has no npm install/publish lifecycle hooks, bundled dependencies, bin executables, or runtime/peer/optional dependency declarations.',
 );
