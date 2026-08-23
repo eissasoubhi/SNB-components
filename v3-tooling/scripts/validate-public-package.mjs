@@ -65,6 +65,13 @@ if (leaked.length) {
   throw new Error(`Public v3 candidate leaks internal files: ${leaked.join(', ')}`);
 }
 
+const unexpected = [...files].filter((file) => !required.includes(file)).sort();
+if (unexpected.length) {
+  throw new Error(
+    `Public v3 candidate contains unexpected packed files outside the reviewed allowlist: ${unexpected.join(', ')}`,
+  );
+}
+
 const manifest = JSON.parse(await readFile(path.join(stagedDir, 'package.json'), 'utf8'));
 if (manifest.name !== 'snb-components' || manifest.version !== '3.0.0-rc.0') {
   throw new Error(`Unexpected public package identity: ${manifest.name}@${manifest.version}`);
