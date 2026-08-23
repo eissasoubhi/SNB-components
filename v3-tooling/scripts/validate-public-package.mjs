@@ -53,6 +53,12 @@ const required = [
   'dist/types/index.d.ts',
   'dist/types/index.d.ts.map',
   'dist/types/index.d.cts',
+  'dist/types/brick.d.ts',
+  'dist/types/brick.d.ts.map',
+  'dist/types/brick.d.cts',
+  'dist/types/summernote.d.ts',
+  'dist/types/summernote.d.ts.map',
+  'dist/types/summernote.d.cts',
 ];
 const missing = required.filter((file) => !files.has(file));
 if (missing.length) {
@@ -63,6 +69,13 @@ const forbiddenPrefixes = ['src/', 'test/', 'tests/', 'v3-tooling/'];
 const leaked = [...files].filter((file) => forbiddenPrefixes.some((prefix) => file.startsWith(prefix)));
 if (leaked.length) {
   throw new Error(`Public v3 candidate leaks internal files: ${leaked.join(', ')}`);
+}
+
+const unexpected = [...files].filter((file) => !required.includes(file)).sort();
+if (unexpected.length) {
+  throw new Error(
+    `Public v3 candidate contains unexpected packed files outside the reviewed allowlist: ${unexpected.join(', ')}`,
+  );
 }
 
 const manifest = JSON.parse(await readFile(path.join(stagedDir, 'package.json'), 'utf8'));
