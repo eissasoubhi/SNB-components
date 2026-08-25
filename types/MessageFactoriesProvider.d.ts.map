@@ -1,1 +1,0 @@
-{"version":3,"file":"MessageFactoriesProvider.d.ts","sourceRoot":"","sources":["../src/MessageFactoriesProvider.ts"],"names":[],"mappings":"AAAA,OAAO,0BAA0B,MAAM,gDAAgD,CAAC;AAExF,MAAM,CAAC,OAAO,CAAC,QAAQ,OAAO,wBAAwB;IAElD,iBAAiB,CAAC,WAAW,EAAE,MAAM,GAAG,CAAC,OAAO,EAAE,MAAM,KAAK,WAAW,GAAG,IAAI;IAW/E,QAAQ,CAAC,oBAAoB,IAAI,0BAA0B;CAC7D"}
