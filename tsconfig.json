@@ -1,21 +1,14 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/",
-    "rootDir": "src",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "strict": true,
-    "module": "es6",
-    "target": "es5",
-    "jsx": "react-jsx",
-    "allowJs": true,
-    "moduleResolution": "node",
-    "declaration": true,
-    "declarationDir": "./types",
-    "declarationMap": true,
-    "typeRoots": [
-      "./types",
-      "./node_modules/@types"
-    ]
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    "types": ["jquery", "node"]
   },
-  "exclude": ["node_modules"],
-  "include": ["./src/**/*"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "*.ts"]
 }

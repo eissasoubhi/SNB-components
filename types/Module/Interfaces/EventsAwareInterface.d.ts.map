@@ -1,1 +1,0 @@
-{"version":3,"file":"EventsAwareInterface.d.ts","sourceRoot":"","sources":["../../../src/Module/Interfaces/EventsAwareInterface.ts"],"names":[],"mappings":"AAAA,MAAM,CAAC,OAAO,WAAW,oBAAoB;IAEzC,EAAE,CAAC,SAAS,EAAE,MAAM,EAAE,YAAY,EAAE,CAAC,IAAI,EAAE,OAAO,KAAK,IAAI,GAAG,oBAAoB,CAAA;IAElF,OAAO,CAAC,SAAS,EAAE,MAAM,EAAE,IAAI,EAAE,MAAM,GAAG,oBAAoB,CAAA;CACjE"}

@@ -1,1 +1,0 @@
-{"version":3,"file":"ExtensionsManager.d.ts","sourceRoot":"","sources":["../src/ExtensionsManager.ts"],"names":[],"mappings":"AAAA,OAAO,qBAAqB,MAAM,2CAA2C,CAAC;AAE9E,MAAM,CAAC,OAAO,OAAO,iBAAiB;IAClC,OAAO,CAAC,UAAU,CAA8B;IAEhD,GAAG,CAAC,SAAS,EAAE,qBAAqB;IAIpC,YAAY,CAAC,SAAS,EAAE,MAAM,EAAE,MAAM,EAAE,GAAG,EAAE,GAAG,IAAI;CAWvD"}
