@@ -4,7 +4,7 @@ SNB-components is the optional shared-core project for the Summernote Bricks eco
 
 ## Current architecture
 
-The repository preserves its historical root package while developing a **parallel v3 shared core**. The v3 line is intentionally small and is only for primitives that are genuinely reusable across multiple plugins.
+V3 is the maintained product line and now lives directly at the repository root. The shared core is intentionally small and is only for primitives that are genuinely reusable across multiple plugins.
 
 Heading and Gallery currently **do not depend on SNB-components v3**. Do not add coupling merely to synchronize package versions; concrete plugins should consume the core only when shared runtime value is demonstrated.
 
@@ -38,7 +38,7 @@ Concrete plugins declare their own host peer ranges.
 
 ## v3 package candidate
 
-`package.v3.json` defines the independent `3.0.0-rc.0` candidate:
+The root `package.json` defines the independent `3.0.0-rc.0` candidate:
 
 ```text
 dist/index.js           ESM
@@ -51,19 +51,20 @@ The candidate uses conditional package `exports` so ESM imports resolve with the
 
 Package contents remain restricted to distribution files plus public documentation.
 
-The historical root package remains preserved by design. Source readiness of the wider ecosystem does not automatically authorize replacing or publishing this package line.
+Repository history is preserved, but there is no longer a maintained parallel `package.v3.json` / `v3-tooling` product line. Publication remains independent from Bricks/Heading/Gallery and requires SNB-components' own release workflow and gates.
 
 ## Development and reproducibility
 
-The v3 tooling has its own committed lockfile and permanent Node 22/24 validation gate:
+The committed root lockfile and permanent Node 22/24 validation gate are authoritative:
 
 ```bash
-cd v3-tooling
 npm ci
 npm run check
 ```
 
 `npm run check` performs strict typechecking, Vitest tests, Vite/TypeScript builds, package-shape validation, exact-tarball consumer checks, and Node package-resolution checks for the shipped declarations.
+
+The independent release-readiness workflow additionally verifies package/lock identity, packs the exact candidate, records SHA-256 and size evidence, and archives the artifact without authorizing publication.
 
 For contribution rules, package-boundary guidance, and release constraints, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -79,9 +80,9 @@ See:
 - `docs/ADR-0001-v3-architecture.md` for the architecture decision and boundaries;
 - `summernote-bricks` issue #3 for ecosystem release-readiness status.
 
-## Historical package
+## Historical continuity
 
-The older components such as `LineBreak`, `ModalMode`, editable wrappers, validation and extension managers belong to the preserved historical package. They are not the architectural contract for new v3 plugins.
+Older components such as `LineBreak`, `ModalMode`, editable wrappers, validation and extension managers remain part of repository history, but they are not the architectural contract for the maintained v3 shared core.
 
 ## License
 
