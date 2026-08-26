@@ -1,0 +1,81 @@
+name: Release readiness
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Exact package artifact
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Verify package identity
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const root = lock.packages?.[''];
+          if (lock.name !== manifest.name || root?.name !== manifest.name) {
+            throw new Error('package.json/package-lock package name mismatch');
+          }
+          if (lock.version !== manifest.version || root?.version !== manifest.version) {
+            throw new Error('package.json/package-lock version mismatch');
+          }
+          NODE
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full package gate
+        run: npm run check
+
+      - name: Pack exact candidate and record digest
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifact
+          npm pack --json > release-artifact/npm-pack.json
+          TARBALL="$(node -p "JSON.parse(require('fs').readFileSync('release-artifact/npm-pack.json','utf8'))[0].filename")"
+          mv "$TARBALL" release-artifact/
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const path = require('node:path');
+          const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const pack = JSON.parse(fs.readFileSync('release-artifact/npm-pack.json', 'utf8'))[0];
+          const tarballPath = path.join('release-artifact', pack.filename);
+          const bytes = fs.readFileSync(tarballPath);
+          const evidence = {
+            package: manifest.name,
+            version: manifest.version,
+            sourceSha: process.env.GITHUB_SHA,
+            tarball: {
+              filename: pack.filename,
+              sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+              size: bytes.length,
+            },
+            publishAuthorized: false,
+          };
+          fs.writeFileSync('release-artifact/release-evidence.json', `${JSON.stringify(evidence, null, 2)}\n`);
+          NODE
+
+      - name: Upload exact package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snb-components-release-readiness-${{ github.sha }}
+          path: release-artifact/
+          if-no-files-found: error
+          retention-days: 14
