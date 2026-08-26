@@ -1,6 +1,9 @@
 name: Release readiness
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
@@ -44,6 +47,8 @@ jobs:
         run: npm run check
 
       - name: Pack exact candidate and record digest
+        env:
+          RELEASE_ELIGIBLE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         run: |
           set -euo pipefail
           mkdir -p release-artifact
@@ -59,12 +64,22 @@ jobs:
           const tarballPath = path.join('release-artifact', pack.filename);
           const bytes = fs.readFileSync(tarballPath);
           const evidence = {
+            schemaVersion: 2,
             package: manifest.name,
             version: manifest.version,
             sourceSha: process.env.GITHUB_SHA,
+            workflow: {
+              repository: process.env.GITHUB_REPOSITORY,
+              runId: process.env.GITHUB_RUN_ID,
+              runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+              event: process.env.GITHUB_EVENT_NAME,
+              ref: process.env.GITHUB_REF,
+              releaseEligible: process.env.RELEASE_ELIGIBLE === 'true',
+            },
             tarball: {
               filename: pack.filename,
               sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+              sha512: `sha512-${crypto.createHash('sha512').update(bytes).digest('base64')}`,
               size: bytes.length,
             },
             publishAuthorized: false,
