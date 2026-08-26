@@ -1,0 +1,43 @@
+name: Sync root lock identity
+
+on:
+  push:
+    branches:
+      - agent/release-readiness-artifact
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/release-readiness-artifact
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Synchronize root package-lock identity
+        run: |
+          set -euo pipefail
+          npm install --package-lock-only --ignore-scripts
+          git diff --exit-code -- package.json
+          git diff --name-only | grep -qx 'package-lock.json'
+          node <<'NODE'
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const root = lock.packages?.[''];
+          if (lock.name !== manifest.name || root?.name !== manifest.name) throw new Error('lockfile name mismatch');
+          if (lock.version !== manifest.version || root?.version !== manifest.version) throw new Error('lockfile version mismatch');
+          NODE
+      - name: Commit synchronized lock identity
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json
+          git commit -m 'chore: align root lockfile package identity'
+          git push
