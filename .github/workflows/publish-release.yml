@@ -1,0 +1,250 @@
+name: Publish validated package
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/publish-release.yml'
+      - '.github/workflows/release-readiness.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+  workflow_dispatch:
+    inputs:
+      readiness_run_id:
+        description: Successful public-main Release readiness run id
+        required: true
+        type: string
+      confirm:
+        description: Type publish to authorize this exact run
+        required: true
+        type: string
+
+concurrency:
+  group: snb-components-publication-${{ github.event.inputs.readiness_run_id || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate-workflow:
+    name: Validate independent release path
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full package gate
+        run: npm run check
+
+      - name: Exercise exact-tarball registry preflight without publishing
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/snb-release-validation"
+          npm pack --json > "$RUNNER_TEMP/snb-release-validation/npm-pack.json"
+          TARBALL="$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))[0].filename" "$RUNNER_TEMP/snb-release-validation/npm-pack.json")"
+          VERSION="$(node -p "require('./package.json').version")"
+          LOCAL_INTEGRITY="$(node -e "const fs=require('fs'),c=require('crypto');process.stdout.write('sha512-'+c.createHash('sha512').update(fs.readFileSync(process.argv[1])).digest('base64'))" "$TARBALL")"
+          EXISTING_INTEGRITY="$(npm view "snb-components@$VERSION" dist.integrity --json 2>/dev/null | tr -d '\"' || true)"
+          if [ -n "$EXISTING_INTEGRITY" ] && [ "$EXISTING_INTEGRITY" != "$LOCAL_INTEGRITY" ]; then
+            printf 'Registry preflight correctly detects that `%s` is already occupied by different bytes. No publication was attempted.\n' "$VERSION" >> "$GITHUB_STEP_SUMMARY"
+          elif [ -n "$EXISTING_INTEGRITY" ]; then
+            printf 'Registry preflight sees `%s` already matching the exact candidate tarball. No publication was attempted.\n' "$VERSION" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf 'Registry preflight sees `%s` as vacant. No publication was attempted.\n' "$VERSION" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          rm -f "$TARBALL"
+
+  publish:
+    name: Publish exact public-main artifact
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      github.event.inputs.confirm == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Resolve and validate requested readiness run
+        id: readiness
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.inputs.readiness_run_id }}
+        run: |
+          set -euo pipefail
+          RUN_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")"
+          NAME="$(node -p "JSON.parse(process.argv[1]).name" "$RUN_JSON")"
+          STATUS="$(node -p "JSON.parse(process.argv[1]).status" "$RUN_JSON")"
+          CONCLUSION="$(node -p "JSON.parse(process.argv[1]).conclusion" "$RUN_JSON")"
+          EVENT="$(node -p "JSON.parse(process.argv[1]).event" "$RUN_JSON")"
+          HEAD_BRANCH="$(node -p "JSON.parse(process.argv[1]).head_branch" "$RUN_JSON")"
+          HEAD_SHA="$(node -p "JSON.parse(process.argv[1]).head_sha" "$RUN_JSON")"
+          if [ "$NAME" != "Release readiness" ] || [ "$STATUS" != "completed" ] || [ "$CONCLUSION" != "success" ] || [ "$EVENT" != "push" ] || [ "$HEAD_BRANCH" != "main" ]; then
+            echo "Run $RUN_ID is not a successful public-main Release readiness run" >&2
+            exit 1
+          fi
+          CURRENT_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          if [ "$CURRENT_MAIN_SHA" != "$HEAD_SHA" ]; then
+            echo "Public main moved after readiness evidence: run=$HEAD_SHA current=$CURRENT_MAIN_SHA" >&2
+            exit 1
+          fi
+          echo "source_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact tested source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.readiness.outputs.source_sha }}
+
+      - name: Setup Node and npm registry
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Download exact public-main release artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.readiness.outputs.run_id }}
+          SOURCE_SHA: ${{ steps.readiness.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifact
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name "snb-components-release-readiness-$SOURCE_SHA" --dir release-artifact
+
+      - name: Validate exact evidence and tarball
+        env:
+          EXPECTED_SHA: ${{ steps.readiness.outputs.source_sha }}
+          EXPECTED_RUN_ID: ${{ steps.readiness.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          EVIDENCE="release-artifact/release-evidence.json"
+          test -f "$EVIDENCE"
+          node - "$EVIDENCE" "$EXPECTED_SHA" "$EXPECTED_RUN_ID" <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const path = require('node:path');
+          const [evidencePath, expectedSha, expectedRunId] = process.argv.slice(2);
+          const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+          const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (evidence.schemaVersion !== 2) throw new Error('Unsupported release evidence schema');
+          if (evidence.package !== manifest.name || evidence.version !== manifest.version) throw new Error('Artifact package identity differs from tested source');
+          if (evidence.sourceSha !== expectedSha) throw new Error('Artifact source SHA differs from requested public-main run');
+          if (String(evidence.workflow?.runId) !== String(expectedRunId)) throw new Error('Artifact workflow run id differs from requested run');
+          if (evidence.workflow?.event !== 'push' || evidence.workflow?.ref !== 'refs/heads/main' || evidence.workflow?.releaseEligible !== true) throw new Error('Artifact is not release-eligible public-main evidence');
+          if (evidence.publishAuthorized !== false) throw new Error('Readiness artifact must not self-authorize publication');
+          const tarballPath = path.join('release-artifact', evidence.tarball.filename);
+          const bytes = fs.readFileSync(tarballPath);
+          const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+          const sha512 = `sha512-${crypto.createHash('sha512').update(bytes).digest('base64')}`;
+          if (sha256 !== evidence.tarball.sha256 || sha512 !== evidence.tarball.sha512 || bytes.length !== evidence.tarball.size) throw new Error('Exact tarball digest/size differs from readiness evidence');
+          NODE
+
+      - name: Preflight npm identity before authentication
+        run: |
+          set -euo pipefail
+          EVIDENCE="release-artifact/release-evidence.json"
+          VERSION="$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1])).version" "$EVIDENCE")"
+          FILENAME="$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1])).tarball.filename" "$EVIDENCE")"
+          TARBALL="release-artifact/$FILENAME"
+          LOCAL_INTEGRITY="$(node -e "const fs=require('fs'),c=require('crypto');process.stdout.write('sha512-'+c.createHash('sha512').update(fs.readFileSync(process.argv[1])).digest('base64'))" "$TARBALL")"
+          EXISTING_INTEGRITY="$(npm view "snb-components@$VERSION" dist.integrity --json 2>/dev/null | tr -d '\"' || true)"
+          if [ -n "$EXISTING_INTEGRITY" ] && [ "$EXISTING_INTEGRITY" != "$LOCAL_INTEGRITY" ]; then
+            echo "snb-components@$VERSION already exists on npm with different registry integrity" >&2
+            exit 1
+          fi
+          if [ -n "$EXISTING_INTEGRITY" ]; then
+            echo "snb-components@$VERSION already matches the exact tested tarball; publication will be idempotent."
+          else
+            echo "snb-components@$VERSION is vacant on npm."
+          fi
+
+      - name: Authenticate npm publisher
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm whoami
+
+      - name: Publish or verify exact tested tarball
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          EVIDENCE="release-artifact/release-evidence.json"
+          VERSION="$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1])).version" "$EVIDENCE")"
+          FILENAME="$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1])).tarball.filename" "$EVIDENCE")"
+          TARBALL="release-artifact/$FILENAME"
+          if [[ "$VERSION" == *-* ]]; then DIST_TAG=next; else DIST_TAG=latest; fi
+          LOCAL_INTEGRITY="$(node -e "const fs=require('fs'),c=require('crypto');process.stdout.write('sha512-'+c.createHash('sha512').update(fs.readFileSync(process.argv[1])).digest('base64'))" "$TARBALL")"
+          EXISTING_INTEGRITY="$(npm view "snb-components@$VERSION" dist.integrity --json 2>/dev/null | tr -d '\"' || true)"
+          if [ -z "$EXISTING_INTEGRITY" ]; then
+            npm publish "$TARBALL" --tag "$DIST_TAG" --access public
+          fi
+          REGISTRY_INTEGRITY=""
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            REGISTRY_INTEGRITY="$(npm view "snb-components@$VERSION" dist.integrity --json 2>/dev/null | tr -d '\"' || true)"
+            [ -n "$REGISTRY_INTEGRITY" ] && break
+            sleep 3
+          done
+          if [ "$REGISTRY_INTEGRITY" != "$LOCAL_INTEGRITY" ]; then
+            echo "Registry integrity verification failed for snb-components@$VERSION" >&2
+            exit 1
+          fi
+          printf '✅ `snb-components@%s` published/verified from the exact readiness tarball on `%s`.\n' "$VERSION" "$DIST_TAG" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify public package from a clean consumer
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "JSON.parse(require('fs').readFileSync('release-artifact/release-evidence.json')).version")"
+          mkdir -p "$RUNNER_TEMP/snb-components-consumer"
+          cd "$RUNNER_TEMP/snb-components-consumer"
+          npm init -y >/dev/null
+          npm install --ignore-scripts --no-audit --no-fund "snb-components@$VERSION"
+          node - "$VERSION" <<'NODE'
+          const fs = require('node:fs');
+          const expected = process.argv[2];
+          const manifest = JSON.parse(fs.readFileSync('node_modules/snb-components/package.json', 'utf8'));
+          if (manifest.version !== expected) throw new Error(`Installed ${manifest.version}; expected ${expected}`);
+          await import('snb-components');
+          const { createRequire } = await import('node:module');
+          createRequire(import.meta.url)('snb-components');
+          NODE
+
+      - name: Create matching GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.readiness.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          EVIDENCE="release-artifact/release-evidence.json"
+          VERSION="$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1])).version" "$EVIDENCE")"
+          FILENAME="$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1])).tarball.filename" "$EVIDENCE")"
+          TAG="v$VERSION"
+          EXISTING_TAG="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null || true)"
+          if [ -n "$EXISTING_TAG" ] && [ "$EXISTING_TAG" != "$SOURCE_SHA" ]; then
+            echo "$TAG already points to $EXISTING_TAG instead of tested source $SOURCE_SHA" >&2
+            exit 1
+          fi
+          if [ -z "$EXISTING_TAG" ]; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$SOURCE_SHA" >/dev/null
+          fi
+          PRERELEASE_ARGS=()
+          if [[ "$VERSION" == *-* ]]; then PRERELEASE_ARGS+=(--prerelease); fi
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" "release-artifact/$FILENAME" "$EVIDENCE" --title "snb-components $VERSION" --notes "Independent SNB-components release produced from the exact public-main readiness artifact and verified from the npm registry." "${PRERELEASE_ARGS[@]}"
+          else
+            gh release upload "$TAG" "release-artifact/$FILENAME" "$EVIDENCE" --clobber
+          fi
