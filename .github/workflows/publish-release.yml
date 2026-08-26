@@ -8,14 +8,19 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'scripts/**'
-  workflow_run:
-    workflows:
-      - Release readiness
-    types:
-      - completed
+  workflow_dispatch:
+    inputs:
+      readiness_run_id:
+        description: Successful public-main Release readiness run id
+        required: true
+        type: string
+      confirm:
+        description: Type publish to authorize this exact run
+        required: true
+        type: string
 
 concurrency:
-  group: snb-components-publication-${{ github.event.workflow_run.head_sha || github.sha }}
+  group: snb-components-publication-${{ github.event.inputs.readiness_run_id || github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -64,12 +69,9 @@ jobs:
   publish:
     name: Publish exact public-main artifact
     if: >-
-      github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_repository.full_name == github.repository &&
-      github.event.workflow_run.event == 'push' &&
-      vars.SNB_RELEASE_ENABLED == 'true'
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      github.event.inputs.confirm == 'publish'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -77,10 +79,36 @@ jobs:
       contents: write
 
     steps:
+      - name: Resolve and validate requested readiness run
+        id: readiness
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.inputs.readiness_run_id }}
+        run: |
+          set -euo pipefail
+          RUN_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")"
+          NAME="$(node -p "JSON.parse(process.argv[1]).name" "$RUN_JSON")"
+          STATUS="$(node -p "JSON.parse(process.argv[1]).status" "$RUN_JSON")"
+          CONCLUSION="$(node -p "JSON.parse(process.argv[1]).conclusion" "$RUN_JSON")"
+          EVENT="$(node -p "JSON.parse(process.argv[1]).event" "$RUN_JSON")"
+          HEAD_BRANCH="$(node -p "JSON.parse(process.argv[1]).head_branch" "$RUN_JSON")"
+          HEAD_SHA="$(node -p "JSON.parse(process.argv[1]).head_sha" "$RUN_JSON")"
+          if [ "$NAME" != "Release readiness" ] || [ "$STATUS" != "completed" ] || [ "$CONCLUSION" != "success" ] || [ "$EVENT" != "push" ] || [ "$HEAD_BRANCH" != "main" ]; then
+            echo "Run $RUN_ID is not a successful public-main Release readiness run" >&2
+            exit 1
+          fi
+          CURRENT_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          if [ "$CURRENT_MAIN_SHA" != "$HEAD_SHA" ]; then
+            echo "Public main moved after readiness evidence: run=$HEAD_SHA current=$CURRENT_MAIN_SHA" >&2
+            exit 1
+          fi
+          echo "source_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
       - name: Checkout exact tested source
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ steps.readiness.outputs.source_sha }}
 
       - name: Setup Node and npm registry
         uses: actions/setup-node@v7
@@ -89,23 +117,23 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Download exact public-main release artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: snb-components-release-readiness-${{ github.event.workflow_run.head_sha }}
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-          path: release-artifact
-
-      - name: Validate exact evidence, tarball and unchanged public head
         env:
-          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
-          EXPECTED_RUN_ID: ${{ github.event.workflow_run.id }}
           GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.readiness.outputs.run_id }}
+          SOURCE_SHA: ${{ steps.readiness.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifact
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name "snb-components-release-readiness-$SOURCE_SHA" --dir release-artifact
+
+      - name: Validate exact evidence and tarball
+        env:
+          EXPECTED_SHA: ${{ steps.readiness.outputs.source_sha }}
+          EXPECTED_RUN_ID: ${{ steps.readiness.outputs.run_id }}
         run: |
           set -euo pipefail
           EVIDENCE="release-artifact/release-evidence.json"
           test -f "$EVIDENCE"
-
           node - "$EVIDENCE" "$EXPECTED_SHA" "$EXPECTED_RUN_ID" <<'NODE'
           const fs = require('node:fs');
           const crypto = require('node:crypto');
@@ -115,8 +143,8 @@ jobs:
           const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           if (evidence.schemaVersion !== 2) throw new Error('Unsupported release evidence schema');
           if (evidence.package !== manifest.name || evidence.version !== manifest.version) throw new Error('Artifact package identity differs from tested source');
-          if (evidence.sourceSha !== expectedSha) throw new Error('Artifact source SHA differs from triggering public main SHA');
-          if (String(evidence.workflow?.runId) !== String(expectedRunId)) throw new Error('Artifact workflow run id differs from trigger');
+          if (evidence.sourceSha !== expectedSha) throw new Error('Artifact source SHA differs from requested public-main run');
+          if (String(evidence.workflow?.runId) !== String(expectedRunId)) throw new Error('Artifact workflow run id differs from requested run');
           if (evidence.workflow?.event !== 'push' || evidence.workflow?.ref !== 'refs/heads/main' || evidence.workflow?.releaseEligible !== true) throw new Error('Artifact is not release-eligible public-main evidence');
           if (evidence.publishAuthorized !== false) throw new Error('Readiness artifact must not self-authorize publication');
           const tarballPath = path.join('release-artifact', evidence.tarball.filename);
@@ -125,12 +153,6 @@ jobs:
           const sha512 = `sha512-${crypto.createHash('sha512').update(bytes).digest('base64')}`;
           if (sha256 !== evidence.tarball.sha256 || sha512 !== evidence.tarball.sha512 || bytes.length !== evidence.tarball.size) throw new Error('Exact tarball digest/size differs from readiness evidence');
           NODE
-
-          CURRENT_MAIN_SHA="$(gh api repos/eissasoubhi/SNB-components/branches/main --jq .commit.sha)"
-          if [ "$CURRENT_MAIN_SHA" != "$EXPECTED_SHA" ]; then
-            echo "Public main moved after release evidence: evidence=$EXPECTED_SHA current=$CURRENT_MAIN_SHA" >&2
-            exit 1
-          fi
 
       - name: Preflight npm identity before authentication
         run: |
@@ -204,7 +226,7 @@ jobs:
       - name: Create matching GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_SHA: ${{ steps.readiness.outputs.source_sha }}
         run: |
           set -euo pipefail
           EVIDENCE="release-artifact/release-evidence.json"
